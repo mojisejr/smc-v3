@@ -9,10 +9,11 @@ import {
   cmdUnlock,
 } from "./utils/command-parser";
 import { SlotState } from "../interfaces/slotState";
+import { ILockController } from "../interfaces/lock-controller";
 import { logger, systemLog } from "../logger";
 import { User } from "../../db/model/user.model";
 
-export class KU16 {
+export class KU16 implements ILockController {
   serialPort: SerialPort;
   parser: PacketLengthParser;
   path: string;

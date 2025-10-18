@@ -5,6 +5,33 @@ import { createWindow } from "./helpers";
 // Import database and KU16 related modules
 import { sequelize } from "../db/sequelize";
 import { KU16 } from "./ku16";
+import { CU12Adapter } from "./cu12";
+import { ISetting } from "./interfaces/setting";
+import { ILockController } from "./interfaces/lock-controller";
+
+/**
+ * Factory function to create lock controller based on protocol type
+ * Returns KU16 or CU12 adapter with same interface
+ */
+function createLockController(settings: ISetting, mainWindow: any): ILockController {
+  if (settings.protocol_type === "CU12") {
+    console.log("FACTORY: Creating CU12 adapter");
+    return new CU12Adapter(
+      settings.cu12_connection_type === "tcp" ? "tcp" : settings.ku_port,
+      settings.cu12_connection_type === "tcp" ? settings.cu12_baudrate || 19200 : settings.ku_baudrate,
+      Math.min(settings.available_slots, 12), // CU12 max 12 locks
+      mainWindow
+    );
+  } else {
+    console.log("FACTORY: Creating KU16 controller (default)");
+    return new KU16(
+      settings.ku_port,
+      settings.ku_baudrate,
+      settings.available_slots,
+      mainWindow
+    );
+  }
+}
 
 // Import IPC handlers for various functionalities
 import { initHandler } from "./ku16/ipcMain/init";
@@ -98,13 +125,8 @@ if (isProd) {
     mainWindow
   );
 
-  // Initialize KU16 device with settings
-  const ku16 = new KU16(
-    settings.ku_port,
-    settings.ku_baudrate,
-    settings.available_slots,
-    mainWindow
-  );
+  // Initialize lock controller using factory pattern
+  const ku16 = createLockController(settings, mainWindow);
 
   // Initialize authentication system
   const auth = new Authentication();

@@ -17,6 +17,12 @@ Setting.init(
     activated_key: { type: DataTypes.STRING },
     indi_port: { type: DataTypes.STRING },
     indi_baudrate: { type: DataTypes.INTEGER },
+    // CU12 Protocol Configuration
+    protocol_type: { type: DataTypes.ENUM("KU16", "CU12"), defaultValue: "KU16" },
+    cu12_address: { type: DataTypes.INTEGER, defaultValue: 0 },
+    cu12_connection_type: { type: DataTypes.ENUM("tcp", "rs485"), defaultValue: "rs485" },
+    cu12_host: { type: DataTypes.STRING, defaultValue: "192.168.1.100" },
+    cu12_port: { type: DataTypes.INTEGER, defaultValue: 5000 },
   },
   {
     sequelize,
