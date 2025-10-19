@@ -33,11 +33,11 @@ interface OpeningSlot {
  */
 export class CU12Adapter implements ILockController {
   private cu12: KerrongCU12; // CU12 implementation
-  private win: BrowserWindow;
+  public win: BrowserWindow;
   private path: string;
   private baudRate: number;
   private availableSlot: number;
-  private connected = false;
+  public connected = false;
   private opening = false;
   private dispensing = false;
   private openingSlot: OpeningSlot | null = null;

@@ -1,9 +1,10 @@
 import { ipcMain } from "electron";
 import { KU16 } from "..";
+import { ILockController } from "../../interfaces/lock-controller";
 import { User } from "../../../db/model/user.model";
 import { logDispensing, logger } from "../../logger";
 
-export const deactiveHanlder = (ku16: KU16) => {
+export const deactiveHanlder = (ku16: ILockController) => {
   ipcMain.handle("deactivate", async (event, payload) => {
     let userId = null;
     let userName = null;

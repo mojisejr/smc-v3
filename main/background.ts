@@ -34,7 +34,7 @@ function createLockController(settings: ISetting, mainWindow: any): ILockControl
     console.log("FACTORY: CU12 adapter created successfully");
     return cu12Adapter;
   } else {
-    console.log("FACTORY: Creating KU16 controller (default)");
+    console.log("FACTORY: Creating default controller (KU16 protocol)");
     return new KU16(
       settings.ku_port,
       settings.ku_baudrate,
