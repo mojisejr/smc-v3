@@ -37,6 +37,7 @@ export class CU12Adapter implements ILockController {
   private path: string;
   private baudRate: number;
   private availableSlot: number;
+  private address: number;
   public connected = false;
   private opening = false;
   private dispensing = false;
@@ -48,25 +49,28 @@ export class CU12Adapter implements ILockController {
     _path: string,
     _baudRate: number,
     _availableSlot: number,
+    _address: number,
     _win: BrowserWindow
   ) {
     console.log("CU12_ADAPTER: Constructor called with:", {
       path: _path,
       baudRate: _baudRate,
-      availableSlot: _availableSlot
+      availableSlot: _availableSlot,
+      address: _address
     });
 
     this.win = _win;
     this.path = _path;
     this.baudRate = _baudRate;
     this.availableSlot = Math.min(_availableSlot, 12); // CU12 max 12 locks
+    this.address = _address;
 
     console.log("CU12_ADAPTER: About to initialize KerrongCU12...");
 
     // Initialize CU12 with RS485 configuration
     this.cu12 = new KerrongCU12({
       model: "CU12",
-      address: 0x00,
+      address: _address, // Use passed address from database instead of hardcoded 0x00
       connection: {
         type: "rs485",
         path: _path,
@@ -88,19 +92,22 @@ export class CU12Adapter implements ILockController {
   private setupEventHandlers(): void {
     this.cu12.on("connected", () => {
       this.connected = true;
-      systemLog("CU12_ADAPTER: Connected to CU12 device");
-      logger({ user: "system", message: "CU12_ADAPTER: Connected to CU12 device" });
+      systemLog(`CU12_ADAPTER: Connected to CU12 device at ${this.path} (${this.baudRate} baud)`);
+      logger({ user: "system", message: `CU12_ADAPTER: Connected - Port: ${this.path}` });
+      console.log("CU12_ADAPTER: Connection event received - connected =", this.connected);
     });
 
     this.cu12.on("disconnected", () => {
       this.connected = false;
-      systemLog("CU12_ADAPTER: Disconnected from CU12 device");
-      logger({ user: "system", message: "CU12_ADAPTER: Disconnected from CU12 device" });
+      systemLog(`CU12_ADAPTER: Disconnected from CU12 device at ${this.path}`);
+      logger({ user: "system", message: `CU12_ADAPTER: Disconnected - Was connected to: ${this.path}` });
+      console.log("CU12_ADAPTER: Disconnection event received - connected =", this.connected);
     });
 
     this.cu12.on("error", (error: Error) => {
-      systemLog(`CU12_ADAPTER: Error - ${error.message}`);
+      systemLog(`CU12_ADAPTER: Error - ${error.message} (Device: ${this.path})`);
       logger({ user: "system", message: `CU12_ADAPTER: Error - ${error.message}` });
+      console.error("CU12_ADAPTER: Error event:", error.message);
     });
 
     this.cu12.on("reconnecting", () => {
@@ -410,18 +417,18 @@ export class CU12Adapter implements ILockController {
    * Setup continuous monitoring
    */
   receive(): void {
-    systemLog("CU12_ADAPTER: Starting receive monitoring");
+    systemLog(`CU12_ADAPTER: Starting receive monitoring for ${this.path}`);
+    console.log(`CU12_ADAPTER: Monitoring connection state: connected=${this.connected}`);
 
-    // CU12 handles responses internally, we just need to poll status
-    // This could be enhanced with proper event-driven approach
     const pollStatus = async () => {
       if (this.connected) {
+        console.log("CU12_ADAPTER: Polling status - device connected");
         await this.sendCheckState();
+      } else {
+        console.log("CU12_ADAPTER: Polling status - device not connected, skipping");
       }
-      // Poll every 2 seconds (configurable)
       setTimeout(pollStatus, 2000);
     };
-
     pollStatus();
   }
 
