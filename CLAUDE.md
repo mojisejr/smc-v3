@@ -2,7 +2,7 @@
 
 **Project Name**: Smart Medication Cart (SMC)
 
-**Repository**: Private / TBD
+**Repository**: https://github.com/mojisejr/smc-v3
 
 **Description**: Desktop application for medication cart management and dispensing. Built with Electron + Next.js (Nextron). Integrates with KU16 hardware via SerialPort, supports MQTT messaging, persists data in SQLite using Sequelize, and provides a Tailwind + DaisyUI UI.
 
@@ -217,6 +217,20 @@ Access:
 
 ### Shortcut Commands (Agent-Driven Workflow)
 
+These commands streamline development with GitHub-based context tracking:
+
+- **`=fcs > [topic-name]`**: Creates new GitHub issue `[XXXX] [topic-name]` for context tracking
+- **`=fcs > [XXXX]`**: Updates existing context issue by number
+- **`=fcs list`**: Shows all active context issues
+- **`=fcs recent`**: Shows recent context issues
+- **`=plan > [question/problem]`**: Creates/Updates GitHub Task Issue with detailed action plan
+- **`=impl > [message]`**: Iterative implementation workflow (creates feature branch, executes from GitHub issue)
+- **`=pr > [feedback]`**: Pull request and integration workflow
+- **`=stage > [message]`**: Staging deployment workflow
+- **`=prod > [message]`**: Production deployment workflow
+- **`=rrr > [message]`**: Creates daily retrospective file and GitHub Issue
+
+**Local Development Commands**:
 - Build validate: `npm run build && npx tsc --noEmit`
 - Open logs directory
 - Backup database immediately
@@ -224,16 +238,18 @@ Access:
 
 ### GitHub Context Tracking Features
 
-- Link issues across PRs and commits
-- Automated branch naming aligned with issues
-- Iteration tracking via session retrospectives
+- **Pure GitHub Storage**: No local context files needed
+- **Issue Naming**: `[XXXX] [topic-name]` format for easy identification
+- **Stateless**: Works from any machine with GitHub access
+- **Collaborative**: Team members can view and contribute to context
+- **Searchable**: Full GitHub search capabilities for context history
 
 ### Workflow Features
 
-- GitHub Context + Task Issue Pattern
-- Automated Branch Management: feature branches created from staging
-- Iteration Tracking: progress visibility via TodoWrite
-- Staging-First Deployment: features validated in staging before main
+- **GitHub Context + Task Issue Pattern**: All context lives in GitHub issues
+- **Automated Branch Management**: Feature branches created from staging
+- **Iteration Tracking**: Progress tracking with TodoWrite integration
+- **Staging-First Deployment**: All features go through staging before production
 
 ### Git Workflow
 
@@ -275,15 +291,34 @@ You are instructed to focus **ONLY** on the assigned task. Do not perform refact
 
 ### BRANCH SAFETY
 
-- Synchronize local branch with remote before implementation
-- Work exclusively on feature branches; **NEVER** commit directly to `main`
-- Avoid force pushes; prefer `--force-with-lease` only if absolutely required
+**MANDATORY STAGING BRANCH SYNC**: Before any implementation (`=impl`), you **MUST** ensure the local staging branch is synchronized with remote origin.
+
+**STAGING-FIRST WORKFLOW**: All implementations work exclusively with staging branch. **NEVER** create PRs to main branch during implementation.
+
+**FORCE PUSH RESTRICTIONS**: Only use `git push --force-with-lease` when absolutely necessary. **NEVER** use `git push --force`.
+
+**HIGH-RISK FILE COORDINATION**: Files requiring team coordination include:
+
+- `src/app/page.tsx`, `src/app/layout.tsx` (main app structure)
+- `package.json`, `yarn.lock` (dependency management)
+- `prisma/schema.prisma` (database schema)
+- `.env.example`, configuration files
 
 ### AUTOMATED WORKFLOW SAFETY
 
-- **BRANCH NAMING ENFORCEMENT**: `feature/[issue-number]-[description]`
-- **COMMIT MESSAGE STANDARDS**: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`; reference issues
-- **CRITICAL RULES**: Build/validate before asking for review
+**BRANCH NAMING ENFORCEMENT**: All feature branches **MUST** follow the pattern `feature/[issue-number]-[description]`.
+
+**COMMIT MESSAGE STANDARDS**: All commits **MUST** include:
+
+- Clear, descriptive subject line (max 50 characters)
+- Reference to related issue number
+- Type prefix: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`
+
+**CRITICAL RULES**:
+
+- **NEVER** work directly on main/staging branches
+- **ALWAYS** create feature branches from staging
+- **ALWAYS** deploy to staging before production
 
 ---
 
@@ -291,29 +326,36 @@ You are instructed to focus **ONLY** on the assigned task. Do not perform refact
 
 ### Multi-Phase Implementation Strategy
 
-**Proven 5-Phase Approach**:
+**Proven 5-Phase Approach** (15-34 minute sessions):
 
-1. **Analysis & Preparation**: component and dependency mapping
-2. **Core Implementation**: primary changes and IPC/API updates
-3. **Integration & Testing**: build validation and hardware simulation
-4. **Documentation & Cleanup**: commits and documentation
-5. **Review & Validation**: final validation
+1. **Analysis & Preparation** (5-8 min): Component analysis, dependency mapping
+2. **Core Implementation** (8-15 min): Primary changes, API updates
+3. **Integration & Testing** (3-8 min): Build validation, error resolution
+4. **Documentation & Cleanup** (2-5 min): Commits, documentation
+5. **Review & Validation** (1-2 min): Final validation
 
 ### TodoWrite Integration Patterns
 
-**High-Impact Usage**: Complex refactoring (3+ files), system changes, hardware integrations
+**High-Impact Usage**: Complex refactoring (3+ files), multi-phase implementations, large system changes
 
 **Workflow Pattern**:
 
-1. Break into manageable todos
+1. Break into 5-12 manageable todos
 2. Mark exactly ONE todo in_progress → completed
-3. Provide real-time visibility and accountability across sessions
+3. Provides real-time visibility and accountability
+4. Enables accurate time estimation
+
+**High-Impact TodoWrite Usage Patterns**:
+✅ Complex multi-component refactoring (3+ files)
+✅ Full-stack implementations (API + Frontend)
+✅ Multi-phase system changes (Database + Application)
+✅ Large refactoring with dependency management
 
 ### Branch Management Excellence
 
-- **ALWAYS** create feature branches
+- **ALWAYS** create feature branches: `feature/[issue-number]-[description]`
 - **NEVER** work directly on main branch
-- **Workflow**: Analysis → Branch → Implementation → Build → Commit → PR → Review
+- **Workflow**: Analysis → Branch → Implementation → Build → Commit → PR → Updates
 
 ---
 
@@ -405,7 +447,58 @@ You are instructed to focus **ONLY** on the assigned task. Do not perform refact
 - IPC payload size and frequency management
 - Renderer performance (list virtualization, memoization)
 
+### 15-Minute Implementation Strategy
+
+**Results**: 15-minute implementations vs 34+ minute baseline
+
+**Prerequisites**: Reference pattern, TodoWrite initialized, component structure analyzed, integration points identified
+
+**Speed Optimization Techniques**:
+
+1. **Pattern Recognition**: 56% faster when following proven patterns
+2. **MultiEdit**: Batch multiple edits instead of sequential single edits
+3. **Systematic Analysis**: 2-3 minute analysis of target areas and integration points
+4. **Build Validation**: `npm run build` after major changes, `npx tsc --noEmit` for type checking
+
+### High-Impact Optimization Areas
+
+#### TodoWrite Integration ROI
+
+- **Setup Time**: 2-3 minutes
+- **Visibility Benefit**: Real-time progress tracking
+- **Accountability**: Prevents skipping critical steps
+- **Stakeholder Communication**: Clear progress indicators
+- **Proven Results**: 56% faster implementations documented
+
+#### Reference Pattern Utilization
+
+- **Pattern Documentation**: Create detailed retrospectives for reusable approaches
+- **Pattern Library**: Maintain reference files as implementation guides
+- **Systematic Replication**: Follow proven approaches exactly
+- **Context Adaptation**: Modify only necessary elements
+
+#### Tool Optimization
+
+- **Efficient Pattern**: Read (targeted) → MultiEdit (batch) → Build (validation)
+- **Avoid**: Multiple single Edits → Multiple Reads → Late build testing
+
 ### Efficiency Factor Analysis
+
+**High Efficiency Sessions** (15-20 minutes):
+
+- ✅ TodoWrite usage for progress tracking
+- ✅ Reference pattern available
+- ✅ Clear component structure understanding
+- ✅ Systematic 5-phase approach
+- ✅ Proactive build validation
+
+**Low Efficiency Sessions** (45+ minutes):
+
+- ❌ No reference pattern
+- ❌ Schema assumptions without verification
+- ❌ Working directly on main branch
+- ❌ Build testing only at end
+- ❌ Complex dependency analysis needed
 
 - Track measured improvements across builds and sessions
 - Document before/after metrics in retrospectives
@@ -435,24 +528,36 @@ You are instructed to focus **ONLY** on the assigned task. Do not perform refact
 
 ## 🛡️ Security Implementation Methodology
 
-### 8-Phase Security Audit Process
+### Systematic Security Audit Approach
 
-- Asset Inventory: identify IPC channels, preload APIs, stored data
-- Threat Modeling: map surfaces for renderer, main, and hardware
-- Policy Definition: channel whitelisting, payload schemas, error handling
-- Hardening: `contextIsolation`, minimal `contextBridge` surface, sanitize logs
-- Validation: schema validation on IPC, input sanitization, bounds checks
-- Secrets Management: environment variables for credentials; no hardcoding
-- Testing: fuzz IPC payloads; simulate error conditions; audit logging
-- Review: periodic audits; update rules when new integrations are added
+**8-Phase Security Audit Process** (31-minute comprehensive audits):
+
+1. **Infrastructure Analysis** (2-3 min): Environment variables, database schema, authentication
+2. **Core Endpoint Analysis** (5-8 min): Input validation, rate limiting, error handling, authorization
+3. **Data Integrity Analysis** (3-5 min): Transaction security, data flow assessment, logging
+4. **Compliance Assessment** (3-5 min): Industry standards and regulations
+5. **Vulnerability Testing** (5-8 min): Injection prevention, authentication bypass, authorization
+6. **Security Implementation** (8-12 min): Rate limiting, input validation, error hardening
+7. **Build Validation** (2-3 min): TypeScript compilation, dependency validation
+8. **Documentation & Reporting** (3-5 min): Security audit report, compliance metrics
 
 ### Enterprise-Grade Security Measures
 
-- Strict channel whitelisting and payload validators for IPC
-- Principle of least privilege in preload-exposed APIs
-- Rate control and debouncing for hardware commands to prevent abuse
-- Redaction rules for logs and error surfaces
-- Secure backup handling; verify integrity before restore
+#### Critical Security Implementations
+
+- **Rate Limiting**: 15-minute windows, configurable limits per endpoint
+- **Input Validation**: Comprehensive schemas for all API endpoints
+- **Secure Error Handling**: Generic error responses prevent information disclosure
+- **File Upload Security**: Type validation, size limits, and secure storage
+
+### Security Best Practices
+
+**Key Security Areas**:
+
+- **Webhook Security**: Validate signatures, prevent replay attacks, never log secrets
+- **File Upload System**: Server-side validation, secure storage, access control
+- **Error Handling**: Generic error responses, sanitized logging
+- **Data Protection**: Encryption in transit, secure storage of sensitive data
 
 ---
 
@@ -490,7 +595,7 @@ You are instructed to focus **ONLY** on the assigned task. Do not perform refact
 
 ## 📈 Retrospective Workflow
 
-When you create retrospective files, include the following sections and details:
+When you use the `=rrr` command, the agent will create a file and an Issue with the following sections and details:
 
 ### Retrospective Structure
 
@@ -514,15 +619,18 @@ When you create retrospective files, include the following sections and details:
 
 ### TodoWrite Integration Best Practices
 
-**Results**: Faster implementations vs. ad hoc sessions
+**Results**: **15-minute implementations** vs 34+ minute sessions
 
-**When to Use**: Complex multi-step tasks (3+ phases), multi-component refactoring, full-stack changes, hardware integrations, database migrations
+**When to Use**: Complex multi-step tasks (3+ phases), multi-component refactoring, full-stack implementations, large refactoring projects, security audits, database migrations
 
 **Workflow Pattern**:
 
-1. Break into manageable todos
+1. Break into 5-12 manageable todos
 2. Mark exactly ONE todo in_progress → completed
-3. Provide real-time visibility and accountability
+3. Provides real-time visibility and accountability
+4. Enables accurate time estimation
+
+**Proven Benefits**: 56% faster implementation, reduces context switching, prevents missing steps, ensures comprehensive testing
 
 ### Pattern Replication Strategy
 
@@ -538,30 +646,47 @@ When you create retrospective files, include the following sections and details:
 #### Critical Validation Points
 
 - **Schema Changes**: `npm run build && npx tsc --noEmit`
-- **IPC Modifications**: `npm run build` and runtime sanity checks
-- **Large Refactoring**: validate typings and renderer mount
+- **API Modifications**: `npm run build 2>&1 | grep -A 5 "error"`
+- **Large Refactoring**: `npx prisma generate && npm run build`
 
 #### Proactive Testing Strategy
 
 - **Incremental Builds**: Test builds after each major change, not just at the end
 - **TypeScript Validation**: Run `npx tsc --noEmit` for pure type checking
 - **Dependency Verification**: Check imports and exports after file restructuring
+- **Database Sync**: Verify `npx prisma generate` after schema changes
 
 ### Schema Investigation Protocol
 
 #### Before Implementation Checklist
 
-1. **Verify Sequelize Models**: Always check actual model definitions under `db/models`
-2. **Trace Data Structures**: Follow interface definitions across IPC → renderer → models
+1. **Verify Database Schema**: Always check actual Prisma schema definitions
+2. **Trace Data Structures**: Follow interface definitions through the codebase
 3. **Validate Field Names**: Don't assume field naming conventions
 4. **Check Relationships**: Understand model relationships before querying
 
 #### Common Schema Pitfalls
 
-- **Assumption Errors**: About field names/structures
-- **Interface Misalignment**: Frontend interfaces not matching Sequelize models
+- **Assumption Errors**: Making assumptions about field names/structures
+- **Interface Misalignment**: Frontend interfaces not matching database schema
 - **Relationship Complexity**: Not understanding foreign key relationships
 - **Type Mismatches**: TypeScript interfaces not reflecting actual data structures
+
+### Multi-Phase Implementation Approach
+
+#### Systematic Phase Breakdown
+
+- **Phase 1**: Analysis & Preparation (10-15%)
+- **Phase 2**: Core Implementation (40-50%)
+- **Phase 3**: Integration & Testing (25-30%)
+- **Phase 4**: Documentation & Cleanup (10-15%)
+
+#### Phase Management Best Practices
+
+- **Clear Phase Objectives**: Define specific deliverables for each phase
+- **Dependency Mapping**: Identify cross-phase dependencies upfront
+- **Progress Checkpoints**: Validate phase completion before proceeding
+- **Issue Tracking**: Update GitHub issues after each phase completion
 
 ### Database Best Practices
 
@@ -569,20 +694,21 @@ When you create retrospective files, include the following sections and details:
 
 - **AUTOINCREMENT**: SQLite manages `sqlite_sequence`; avoid manual resets
 - **Recovery**: Use vacuum and integrity checks when needed; prefer migration scripts
+- **Common Issue**: Auto-increment sequences become desynchronized after manual insertions
 
 ### Documentation Standards
 
 #### PR Description Requirements
 
-- **Implementation Summary**
-- **Technical Details**
-- **Before/After Analysis**
-- **Testing Validation**
-- **Iteration Note Summary**
+- **Implementation Summary**: Clear overview of changes made
+- **Technical Details**: Specific technical implementation notes
+- **Before/After Analysis**: Impact assessment and improvement metrics
+- **Testing Validation**: Build success and functionality verification
+- **Iteration Note Summary**: Key decisions and hurdles from development
 
 #### Retrospective Documentation
 
 - **AI Diary**: First-person reflection on approach and decision-making
-- **Honest Feedback**: Efficiency and quality assessment
-- **Pattern Recognition**: Reusable patterns and approaches
+- **Honest Feedback**: Critical assessment of session efficiency and quality
+- **Pattern Recognition**: Identification of reusable patterns and approaches
 - **Lessons Learned**: Specific insights for future implementation improvement

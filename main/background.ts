@@ -14,14 +14,25 @@ import { ILockController } from "./interfaces/lock-controller";
  * Returns KU16 or CU12 adapter with same interface
  */
 function createLockController(settings: ISetting, mainWindow: any): ILockController {
+  console.log("FACTORY: Protocol type is:", settings.protocol_type);
+
   if (settings.protocol_type === "CU12") {
-    console.log("FACTORY: Creating CU12 adapter");
-    return new CU12Adapter(
+    console.log("FACTORY: Creating CU12 adapter with settings:", {
+      connection_type: settings.cu12_connection_type,
+      port: settings.cu12_connection_type === "tcp" ? "tcp" : settings.ku_port,
+      baudrate: settings.cu12_connection_type === "tcp" ? settings.cu12_baudrate || 19200 : settings.ku_baudrate,
+      slots: Math.min(settings.available_slots, 12)
+    });
+
+    const cu12Adapter = new CU12Adapter(
       settings.cu12_connection_type === "tcp" ? "tcp" : settings.ku_port,
       settings.cu12_connection_type === "tcp" ? settings.cu12_baudrate || 19200 : settings.ku_baudrate,
       Math.min(settings.available_slots, 12), // CU12 max 12 locks
       mainWindow
     );
+
+    console.log("FACTORY: CU12 adapter created successfully");
+    return cu12Adapter;
   } else {
     console.log("FACTORY: Creating KU16 controller (default)");
     return new KU16(
@@ -113,6 +124,14 @@ if (isProd) {
   // Get application settings
   const settings = await getSetting();
 
+  console.log("DEBUG: Settings loaded:", {
+    protocol_type: settings.protocol_type,
+    cu12_address: settings.cu12_address,
+    cu12_connection_type: settings.cu12_connection_type,
+    ku_port: settings.ku_port,
+    available_slots: settings.available_slots
+  });
+
   if (settings && sql) {
     dbConnection = true;
   }
@@ -126,7 +145,9 @@ if (isProd) {
   );
 
   // Initialize lock controller using factory pattern
+  console.log("DEBUG: About to create lock controller...");
   const ku16 = createLockController(settings, mainWindow);
+  console.log("DEBUG: Lock controller created:", ku16.constructor.name);
 
   // Initialize authentication system
   const auth = new Authentication();

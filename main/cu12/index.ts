@@ -50,10 +50,18 @@ export class CU12Adapter implements ILockController {
     _availableSlot: number,
     _win: BrowserWindow
   ) {
+    console.log("CU12_ADAPTER: Constructor called with:", {
+      path: _path,
+      baudRate: _baudRate,
+      availableSlot: _availableSlot
+    });
+
     this.win = _win;
     this.path = _path;
     this.baudRate = _baudRate;
     this.availableSlot = Math.min(_availableSlot, 12); // CU12 max 12 locks
+
+    console.log("CU12_ADAPTER: About to initialize KerrongCU12...");
 
     // Initialize CU12 with RS485 configuration
     this.cu12 = new KerrongCU12({
@@ -69,7 +77,9 @@ export class CU12Adapter implements ILockController {
       },
     });
 
+    console.log("CU12_ADAPTER: KerrongCU12 initialized, setting up handlers...");
     this.setupEventHandlers();
+    console.log("CU12_ADAPTER: Constructor completed");
   }
 
   /**
