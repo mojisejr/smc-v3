@@ -1,0 +1,2 @@
+id,ku_port,ku_baudrate,available_slots,max_user,service_code,max_log_counts,organization,customer_name,activated_key,indi_port,indi_baudrate,protocol_type,cu12_address,cu12_connection_type,cu12_host,cu12_port
+1,COM20,19200,15.0,20,serv-1234,500,SMC-APP,SMC-APP,eyJod2lkIjoiMDJhODMzNDQ0Y2Y5MTM4YWIwZDNmMmJmMTkyZjZlNmRlZmMyNWI5OWQ0MWQ1ZTIyYTJlMTVhZTcyZjNiODkzYiIsImV4cGlyeSI6IjIwMjYtMDYtMTBUMDY6NTk6MjIuNjM1WiIsImN1c3RvbWVyTmFtZSI6IlNNQy1BUFAiLCJvcmdhbml6YXRpb24iOiJTTUMtQVBQIn0=,COM20,19200,CU12,1,rs485,192.168.1.100,COM20

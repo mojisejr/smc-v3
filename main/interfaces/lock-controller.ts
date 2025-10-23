@@ -11,8 +11,12 @@ export interface ILockController {
   getSerialPort(): SerialPort;
   open(): boolean | Promise<boolean>;
   close(): void;
+  connected: boolean;
   isConnected(): boolean;
   receive(): void;
+
+  // Window access for handlers
+  win: BrowserWindow;
 
   // Slot operations
   sendUnlock(inputSlot: {

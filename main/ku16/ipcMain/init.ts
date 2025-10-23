@@ -1,11 +1,12 @@
 import { BrowserWindow, ipcMain, dialog } from "electron";
 import { KU16 } from "..";
+import { ILockController } from "../../interfaces/lock-controller";
 import { logger } from "../../logger";
 
-export const initHandler = (ku16: KU16, win: BrowserWindow) => {
+export const initHandler = (ku16: ILockController, win: BrowserWindow) => {
   ipcMain.handle("init", async (event, payload) => {
     console.log(
-      `KU16_CONNECTION: ${ku16.connected ? "CONNECTED" : "NO CONNECTION"}`
+      `DEVICE_CONNECTION: ${ku16.connected ? "CONNECTED" : "NO CONNECTION"}`
     );
 
     if (!ku16.connected) {

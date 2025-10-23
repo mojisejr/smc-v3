@@ -1,8 +1,9 @@
 import { ipcMain } from "electron";
 import { KU16 } from "..";
+import { ILockController } from "../../interfaces/lock-controller";
 import { logDispensing, logger } from "../../logger";
 import { User } from "../../../db/model/user.model";
-export const dispensingResetHanlder = (ku16: KU16) => {
+export const dispensingResetHanlder = (ku16: ILockController) => {
   ipcMain.handle("reset", async (event, payload) => {
     let userId = null;
     let userName = null;

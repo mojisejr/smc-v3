@@ -1,9 +1,10 @@
 import { ipcMain } from "electron";
 import { KU16 } from "..";
+import { ILockController } from "../../interfaces/lock-controller";
 import { User } from "../../../db/model/user.model";
 import { logger } from "../../logger";
 
-export const reactiveAllHanlder = (ku16: KU16) => {
+export const reactiveAllHanlder = (ku16: ILockController) => {
   ipcMain.handle("reactivate-all", async (event, payload) => {
     try {
       const user = await User.findOne({ where: { name: payload.name } });

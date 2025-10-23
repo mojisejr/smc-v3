@@ -1,7 +1,7 @@
 import { Log } from "../../db/model/logs.model";
 import { DispensingLog } from "../../db/model/dispensing-logs.model";
 import { dialog, ipcMain } from "electron";
-import { KU16 } from "../ku16";
+import { ILockController } from "../interfaces/lock-controller";
 import { User } from "../../db/model/user.model";
 import fs from "fs";
 import { Setting } from "../../db/model/setting.model";
@@ -46,7 +46,7 @@ export const getDispensingLogs = async () => {
   });
 };
 
-export const LoggingHandler = (ku16: KU16) => {
+export const LoggingHandler = (ku16: ILockController) => {
   ipcMain.handle("get_logs", async () => {
     const data = await getLogs();
     const logs = data.map((log) => log.dataValues);
@@ -54,14 +54,14 @@ export const LoggingHandler = (ku16: KU16) => {
   });
 };
 
-export const exportLogsHandler = (ku16: KU16) => {
+export const exportLogsHandler = (ku16: ILockController) => {
   ipcMain.handle("export_logs", async () => {
     const filename = await exportLogs();
     return filename.csvPath;
   });
 };
 
-export const logDispensingHanlder = (ku16: KU16) => {
+export const logDispensingHanlder = (ku16: ILockController) => {
   ipcMain.handle("get_dispensing_logs", async () => {
     const data = await getDispensingLogs();
     const logs = data.map((log) => {
