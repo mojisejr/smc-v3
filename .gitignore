@@ -5,7 +5,6 @@ node_modules
 app
 dist
 
-docs/
 notes/
 session/
 
@@ -35,4 +34,8 @@ node_modules/
 
 # Task files
 # tasks.json
-# tasks/ 
+# tasks/
+
+# Test files
+**/__test_*.ts
+**/__test_*.tsx 

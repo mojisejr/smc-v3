@@ -517,7 +517,12 @@ chmod +x smc-x.x.x.AppImage
 - [MQTT Documentation](https://mqtt.org/documentation)
 - [SerialPort Documentation](https://serialport.io/docs)
 
-#### 7.3.2 เครื่องมือที่แนะนำ
+#### 7.3.2 Development Guides
+
+- [Interface Organization Guide](./docs/INTERFACE_ORGANIZATION.md) - TypeScript interface organization and best practices
+- [Shared Types Documentation](./shared/README.md) - How to use shared types between main and renderer processes
+
+#### 7.3.3 เครื่องมือที่แนะนำ
 
 - VS Code
 - SQLite Browser

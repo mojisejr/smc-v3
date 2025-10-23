@@ -1,5 +1,12 @@
 {
   "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "..",
+    "paths": {
+      "@shared/*": ["../shared/*"],
+      "@shared/types": ["../shared/types"]
+    }
+  },
   "include": [
     "next-env.d.ts",
     "**/*.ts",
