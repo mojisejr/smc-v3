@@ -104,8 +104,13 @@
 
 1. **Create Feature Branch**: `git checkout -b feature/task-[number]-[description]`
 2. **Execute Implementation**: Follow task requirements, use TodoWrite for complex tasks
-3. **Quality Validation**: `npm run build` (100% pass) + `npm run lint` (100% pass) + `npx tsc --noEmit`
-4. **Commit Changes**:
+3. **Debug with Enhanced VS Code Setup**:
+   - Use "Debug Main Process (Launch)" for hardware communication debugging
+   - Set breakpoints in SerialPort and IPC handler code
+   - Monitor real-time console output in VS Code debug console
+   - Test CU12/KU16 communication with live debugging
+4. **Quality Validation**: `npm run build` (100% pass) + `npm run lint` (100% pass) + `npx tsc --noEmit`
+5. **Commit Changes**:
 
    ```bash
    git add .
@@ -119,7 +124,7 @@
    Co-Authored-By: Claude <noreply@anthropic.com>"
    ```
 
-5. **Push Branch**: `git push -u origin feature/task-[number]-[description]`
+6. **Push Branch**: `git push -u origin feature/task-[number]-[description]`
 
 **Post-Implementation**:
 
@@ -212,6 +217,33 @@ npm run build:linux      # Build for Linux
 npm run build:win63      # Build for Windows x64
 npm run lint             # Lint code (must 100% pass)
 ```
+
+### Enhanced Debugging Setup
+
+**VS Code Debugging Configurations** (`.vscode/launch.json`):
+
+- **Debug Main Process (Launch)** ⭐ **Primary for hardware development**
+  - Full SerialPort communication debugging
+  - Real-time console output monitoring
+  - Step-through debugging for CU12/KU16 implementation
+  - Breakpoint support for packet parsing and IPC handlers
+
+- **Debug Renderer Process**
+  - React component debugging
+  - Frontend state management debugging
+
+- **Debug Electron (All Processes)** 🚀 **Full-stack debugging**
+  - Simultaneous main and renderer process debugging
+  - End-to-end workflow testing
+
+**Debugging Usage During =impl**:
+1. **Set breakpoints** in hardware communication code
+2. **Use F5** to launch with "Debug Main Process (Launch)"
+3. **Monitor console output** in VS Code debug console
+4. **Test SerialPort communication** in real-time
+5. **Step through CU12 packet construction** line by line
+
+**Documentation**: See `.vscode/DEBUG.md` for complete debugging guide
 
 ### Environment Variables (Critical - Never Commit)
 
