@@ -1,0 +1,36 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "dev",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "custom",
+        "pattern": {
+          "regexp": ""
+        },
+        "background": {
+          "beginsPattern": "started server",
+          "endsPattern": "Debugger listening on"
+        }
+      },
+      "label": "dev"
+    },
+    {
+      "type": "npm",
+      "script": "build",
+      "group": "build",
+      "label": "build: electron",
+      "detail": "Build electron application for testing",
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "command": "echo 'Starting Electron debugging session...'",
+      "label": "debug: prepare",
+      "detail": "Prepare debugging environment",
+      "problemMatcher": []
+    }
+  ]
+}
