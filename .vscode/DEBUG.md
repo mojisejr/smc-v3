@@ -1,19 +1,21 @@
-# Electron Debugging Guide
+# CU12 Hardware Debugging Guide
 
 ## Overview
 
-Enhanced debugging configuration for Smart Medication Cart (SMC) Electron application to support CU12 hardware migration development.
+Enhanced debugging configuration for Smart Medication Cart (SMC) Electron application with comprehensive CU12 hardware debugging support for TASK-15-1 implementation.
 
 ## Debugging Configurations
 
-### 1. Debug Main Process (Launch) ⭐ **Recommended for CU12 Development**
-- **Purpose**: Direct launch of Electron main process with full debugging visibility
+### 1. Debug Main Process (Launch) ⭐ CU12 Hardware Debugging
+- **Purpose**: Primary configuration for CU12 hardware development and debugging
 - **Use Case**: CU12 controller implementation, SerialPort debugging, IPC handler development
 - **Features**:
   - Full stdout/stderr capture in integrated terminal
   - Source map support for TypeScript files
-  - Environment variables set for development
+  - Environment variables: `NODE_ENV=development`, `DEBUG_CU12=true`
   - Remote debugging port enabled for renderer process
+  - Enhanced logging for CU12 packet communication
+  - Real-time console output monitoring
 
 ### 2. Debug Main Process (Attach)
 - **Purpose**: Attach to already running Electron process
@@ -27,16 +29,36 @@ Enhanced debugging configuration for Smart Medication Cart (SMC) Electron applic
 
 ### 4. Debug Electron (All Processes) 🚀 **Full Stack Debugging**
 - **Purpose**: Debug both main and renderer processes simultaneously
-- **Use Case**: Complete end-to-end testing
+- **Use Case**: Complete end-to-end testing with CU12 hardware
 - **Features**: Synchronized debugging with stop-all capability
+
+### 5. Debug CU12 Hardware Only ⚡ **Hardware-Focused Debugging**
+- **Purpose**: Fast debugging of main process only for CU12 hardware
+- **Use Case**: Hardware communication testing without UI debugging
+- **Features**: Focused on SerialPort and CU12 packet debugging
 
 ## Quick Start for CU12 Development
 
-1. **Open KU16 files**: Navigate to `main/ku16/index.ts`
-2. **Set breakpoints**: Add breakpoints in SerialPort communication methods
-3. **Start debugging**: Press F5 with "Debug Main Process (Launch)" selected
-4. **Test SerialPort**: Use `sendUnlock()` method to test hardware communication
-5. **Monitor output**: Check integrated terminal for real-time logs
+1. **Open CU12 files**: Navigate to `main/cu12/index.ts`
+2. **Set breakpoints**: Add breakpoints in CU12 communication methods:
+   - `CU12Controller` constructor (line ~54) - SerialPort initialization
+   - `sendUnlock()` method (line ~150) - Command sending
+   - `parser.on("data")` handler (line ~380) - Packet reception
+3. **Start debugging**: Press F5 with "**Debug Main Process (Launch) ⭐ CU12 Hardware Debugging**" selected
+4. **Test CU12**: Use unlock operations to test hardware communication
+5. **Monitor output**: Check VS Code debug console for detailed CU12 logging
+
+## Recommended Breakpoint Locations for CU12
+
+### In `main/cu12/index.ts` (CU12Controller):
+- **Line ~54**: SerialPort connection callback - Check connection errors
+- **Line ~150**: `sendUnlock()` method - Verify slot mapping and packet construction
+- **Line ~380**: Packet receiver - Monitor all incoming CU12 packets
+- **Line ~200**: `receivedUnlockState()` - Handle unlock responses
+
+### In `main/cu12/utils/packet-utils.ts`:
+- **Line ~20**: `createPacket()` - Verify CU12 packet format
+- **Line ~35**: `parseResponse()` - Check packet validation
 
 ## Debugging CU12 Implementation
 

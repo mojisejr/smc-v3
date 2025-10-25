@@ -5,7 +5,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Main Process (Launch)",
+      "name": "Debug Main Process (Launch) ⭐ CU12 Hardware Debugging",
       "type": "node",
       "request": "launch",
       "cwd": "${workspaceFolder}",
@@ -13,7 +13,7 @@
       "windows": {
         "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron.cmd"
       },
-      "args": [".", "--remote-debugging-port=9222", "--inspect=9292"],
+      "args": [".", "--remote-debugging-port=9222", "--inspect=9292", "--enable-logging"],
       "outputCapture": "std",
       "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"],
@@ -23,8 +23,11 @@
         "webpack:///*": "*"
       },
       "env": {
-        "NODE_ENV": "development"
-      }
+        "NODE_ENV": "development",
+        "DEBUG_CU12": "true"
+      },
+      "timeout": 30000,
+      "protocol": "inspector"
     },
     {
       "name": "Debug Main Process (Attach)",
@@ -81,8 +84,13 @@
   ],
   "compounds": [
     {
-      "name": "Debug Electron (All Processes)",
-      "configurations": ["Debug Main Process (Launch)", "Debug Renderer Process"],
+      "name": "Debug Electron (All Processes) 🚀 Full Stack",
+      "configurations": ["Debug Main Process (Launch) ⭐ CU12 Hardware Debugging", "Debug Renderer Process"],
+      "stopAll": true
+    },
+    {
+      "name": "Debug CU12 Hardware Only ⚡",
+      "configurations": ["Debug Main Process (Launch) ⭐ CU12 Hardware Debugging"],
       "stopAll": true
     },
     {

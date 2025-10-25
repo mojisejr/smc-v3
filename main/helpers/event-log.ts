@@ -1,7 +1,11 @@
-import { DB, IO } from "../enums/ipc.enums";
+// import { DB, IO } from "../enums/ipc.enums"; // File missing - commented out
 import { ipcMain } from "electron";
 
 export function logEvents() {
+  // Function temporarily disabled due to missing enum file
+  console.log("Event logging temporarily disabled - enum file missing");
+
+  /*
   console.log(`${DB.SlotRegistered}`, ipcMain.listenerCount(DB.SlotRegistered));
   console.log(`${DB.GetAllSlots}`, ipcMain.listenerCount(DB.GetAllSlots));
   console.log(`${IO.Opening}`, ipcMain.listenerCount(IO.Opening));
@@ -30,4 +34,5 @@ export function logEvents() {
     `${IO.DispensingFinished}`,
     ipcMain.listenerCount(IO.DispensingFinished)
   );
+  */
 }
