@@ -1,4 +1,4 @@
-import { SerialPort, PacketLengthParser } from "serialport";
+import { SerialPort, ReadlineParser } from "serialport";
 import { Slot } from "../../db/model/slot.model";
 import { BrowserWindow, ipcMain } from "electron";
 import { CU12PacketUtils, mapKu16SlotToCu12, mapCu12ToKu16Slot, CU12Packet } from "./utils/packet-utils";
@@ -17,7 +17,7 @@ export interface CU12SlotData {
 
 export class CU12Controller {
   serialPort: SerialPort;
-  parser: PacketLengthParser;
+  parser: ReadlineParser;
   path: string;
   baudRate: number;
   autoOpen: boolean = true;
@@ -74,9 +74,9 @@ export class CU12Controller {
     );
 
     this.parser = this.serialPort.pipe(
-      new PacketLengthParser({
-        delimiter: 0x02,
-        packetOverhead: 10, // Fixed: CU12 status responses are 10 bytes
+      new ReadlineParser({
+        delimiter: [0x02], // STX delimiter for CU12 packets
+        encoding: 'binary'
       })
     );
 
@@ -661,16 +661,110 @@ export class CU12Controller {
   }
 
   /**
-   * Main data receiver for CU12 packets
+   * Enhanced packet parsing for CU12 with flexible length handling
+   */
+  private parseCU12PacketFlexible(data: Buffer): CU12Packet | null {
+    try {
+      // CU12 packet structure: [STX, ADDR, LOCKNUM, CMD, ASK, DATALEN, ETX, SUM, STATUS0, STATUS1]
+      // Minimum packet size is 10 bytes (without additional data)
+      if (data.length < 10) {
+        CU12Logger.logStatus('Packet too short for CU12 format', {
+          length: data.length,
+          data: Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')
+        });
+        return null;
+      }
+
+      // Extract basic packet components
+      const stx = data[0];
+      const address = data[1];
+      const lockNum = data[2];
+      const command = data[3];
+      const ask = data[4];
+      const dataLen = data[5];
+      const etx = data[6];
+      const checksum = data[7];
+      const status0 = data[8];
+      const status1 = data[9];
+
+      // Validate STX (Start of Text)
+      if (stx !== 0x02) {
+        CU12Logger.logStatus('Invalid STX byte', {
+          expected: '0x02',
+          received: '0x' + stx.toString(16)
+        });
+        return null;
+      }
+
+      // Validate ETX (End of Text)
+      if (etx !== 0x03) {
+        CU12Logger.logStatus('Invalid ETX byte', {
+          expected: '0x03',
+          received: '0x' + etx.toString(16)
+        });
+        return null;
+      }
+
+      // Validate checksum (simple XOR checksum for CU12)
+      const expectedChecksum = this.calculateCU12Checksum(data.slice(0, 7));
+      if (checksum !== expectedChecksum) {
+        CU12Logger.logStatus('Checksum mismatch', {
+          expected: '0x' + expectedChecksum.toString(16),
+          received: '0x' + checksum.toString(16)
+        });
+        return null;
+      }
+
+      // Parse status data if available (after the basic 10 bytes)
+      let statusData: Buffer | undefined;
+      if (data.length > 10) {
+        statusData = data.slice(8, 8 + dataLen);
+      }
+
+      return {
+        stx,
+        address,
+        lockNum,
+        command,
+        ask,
+        dataLen,
+        etx,
+        checksum,
+        statusData,
+        status0,
+        status1
+      };
+    } catch (error) {
+      CU12Logger.logError(error as Error, 'Error parsing CU12 packet', {
+        data: Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Calculate CU12 checksum (XOR of first 7 bytes)
+   */
+  private calculateCU12Checksum(data: Buffer): number {
+    let checksum = 0;
+    for (let i = 0; i < Math.min(7, data.length); i++) {
+      checksum ^= data[i];
+    }
+    return checksum;
+  }
+
+  /**
+   * Main data receiver for CU12 packets with enhanced parsing
    */
   receive() {
-    CU12Logger.logStatus('Starting CU12 packet receiver');
+    CU12Logger.logStatus('Starting CU12 packet receiver with ReadlineParser');
 
     this.parser.on("data", async (data: Buffer) => {
       try {
         CU12Logger.logPacket('RX', data, 'Raw packet received');
 
-        const packet = CU12PacketUtils.parseResponse(data);
+        // Use enhanced flexible packet parsing
+        const packet = this.parseCU12PacketFlexible(data);
         if (!packet) {
           CU12Logger.logStatus('Invalid CU12 packet received', {
             data: Array.from(data).map(b => b.toString(16)).join(' ')
