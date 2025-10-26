@@ -2,7 +2,7 @@ import { ipcMain } from "electron";
 import { CU12Controller } from "..";
 
 export const getPortListHandler = (cu12: CU12Controller) => {
-  ipcMain.handle("getPortList", async (event) => {
+  ipcMain.handle("get-port-list", async (event) => {
     try {
       const ports = await CU12Controller.LIST();
       return ports;
