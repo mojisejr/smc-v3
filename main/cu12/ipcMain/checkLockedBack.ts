@@ -3,7 +3,7 @@ import { CU12Controller } from "..";
 import { logger } from "../../logger";
 
 export const checkLockedBackHandler = (cu12: CU12Controller) => {
-  ipcMain.handle("checkLockedBack", async (event, payload) => {
+  ipcMain.handle("check-locked-back", async (event, payload) => {
     try {
       const slotId = payload.slotId;
       await logger({

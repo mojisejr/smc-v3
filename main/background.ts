@@ -123,7 +123,7 @@ if (isProd) {
   getSettingHandler(mainWindow);
   getUserHandler(mainWindow);
   // updateSettingHandler expects KU12 but we can use CU12 for compatibility
-// updateSettingHandler(mainWindow, cu12 as any); // Temporarily comment out for basic functionality
+  updateSettingHandler(mainWindow, cu12 as any);
   getAllSlotsHandler();
   createNewUserHandler();
   deleteUserHandler();
@@ -146,9 +146,9 @@ if (isProd) {
   deactiveHandler(cu12);
   // Note: These handlers expect KU16 type - comment out for now, will migrate if needed
   // deactiveAllHandler(cu12);
-  // reactiveAllHanlder(cu12);
-  // reactivateAdminHandler(cu12);
-  // deactivateAdminHandler(cu12);
+  reactiveAllHanlder(cu12);
+  reactivateAdminHandler(cu12);
+  deactivateAdminHandler(cu12);
 
   // Logging related handlers - expecting KU12 type, comment out for now
   // logDispensingHanlder(cu12);
