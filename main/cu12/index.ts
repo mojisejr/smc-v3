@@ -76,7 +76,7 @@ export class CU12Controller {
     this.parser = this.serialPort.pipe(
       new PacketLengthParser({
         delimiter: 0x02,
-        packetOverhead: 8,
+        packetOverhead: 10, // Fixed: CU12 status responses are 10 bytes
       })
     );
 
