@@ -5,21 +5,21 @@
  * STX: 0x02, ETX: 0x03
  * ADDR: Board address (0x00 or 0x01)
  * LOCKNUM: Lock number 0-11
- * CMD: 0x30 (Status) or 0x31 (Unlock)
+ * CMD: 0x80 (Status) or 0x81 (Unlock)
  * ASK: 0x00
  * DATALEN: 0x00 (no data for basic commands)
- * SUM: XOR checksum of all bytes except STX and ETX
+ * SUM: Sum of all bytes modulo 256
  */
 
 export interface CU12Packet {
   stx: number;        // 0x02
   address: number;    // 0x00 or 0x01 (board address)
   lockNum: number;    // Lock number 0-11
-  command: number;    // 0x30 (Status) or 0x31 (Unlock)
+  command: number;    // 0x80 (Status) or 0x81 (Unlock)
   ask: number;        // 0x00
   dataLen: number;    // 0x00 (no data for basic commands)
   etx: number;        // 0x03
-  checksum: number;   // XOR checksum
+  checksum: number;   // Sum modulo 256
 }
 
 export class CU12PacketUtils {
@@ -32,14 +32,14 @@ export class CU12PacketUtils {
    * Create CU12 status check packet for specific board
    */
   static createStatusPacket(address: number): Buffer {
-    return this.createPacket(address, 0, 0x30);
+    return this.createPacket(address, 0, 0x80);
   }
 
   /**
    * Create CU12 unlock packet for specific board and lock
    */
   static createUnlockPacket(address: number, lockNum: number): Buffer {
-    return this.createPacket(address, lockNum, 0x31);
+    return this.createPacket(address, lockNum, 0x81);
   }
 
   /**
@@ -56,8 +56,8 @@ export class CU12PacketUtils {
       this.ETX
     ];
 
-    // Calculate XOR checksum for bytes between STX and ETX (inclusive of ADDR, exclusive of ETX)
-    let checksum = address ^ lockNum ^ command ^ this.ASK ^ this.DATA_LEN;
+    // Calculate checksum as sum of all bytes modulo 256 (correct CU12 protocol)
+    const checksum = packet.reduce((sum, byte) => sum + byte, 0) & 0xFF;
     packet.push(checksum);
 
     return Buffer.from(packet);
@@ -65,9 +65,21 @@ export class CU12PacketUtils {
 
   /**
    * Parse CU12 response packet
+   * Handles variable-length packets (8-48 bytes) for status responses with data
    */
   static parseResponse(data: Buffer): CU12Packet | null {
-    if (data.length < 8 || data[0] !== this.STX || data[6] !== this.ETX) {
+    if (data.length < 8 || data[0] !== this.STX) {
+      return null;
+    }
+
+    // Find ETX position (can vary with data length)
+    let etxPosition = 6; // Default position for no data
+    if (data.length > 8) {
+      // For packets with data, ETX position depends on data length
+      etxPosition = 6 + data[5]; // 6 + DATALEN
+    }
+
+    if (etxPosition >= data.length || data[etxPosition] !== this.ETX) {
       return null;
     }
 
@@ -78,12 +90,22 @@ export class CU12PacketUtils {
       command: data[3],
       ask: data[4],
       dataLen: data[5],
-      etx: data[6],
-      checksum: data[7]
+      etx: data[etxPosition],
+      checksum: data[etxPosition + 1]
     };
 
-    // Verify checksum
-    const expectedChecksum = packet.address ^ packet.lockNum ^ packet.command ^ packet.ask ^ packet.dataLen;
+    // Verify checksum using sum modulo 256
+    const packetBytes = [
+      packet.stx,
+      packet.address,
+      packet.lockNum,
+      packet.command,
+      packet.ask,
+      packet.dataLen,
+      packet.etx
+    ];
+    const expectedChecksum = packetBytes.reduce((sum, byte) => sum + byte, 0) & 0xFF;
+
     if (packet.checksum !== expectedChecksum) {
       return null;
     }
@@ -96,9 +118,9 @@ export class CU12PacketUtils {
    */
   static getCommandName(command: number): string {
     switch (command) {
-      case 0x30:
+      case 0x80:
         return "STATUS";
-      case 0x31:
+      case 0x81:
         return "UNLOCK";
       default:
         return "UNKNOWN";
