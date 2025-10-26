@@ -1,13 +1,17 @@
 /**
  * CU12 Packet Utilities
  *
- * CU12 Protocol: [STX, ADDR, LOCKNUM, CMD, ASK, DATALEN, ETX, SUM]
+ * CU12 Protocol: [STX, ADDR, LOCKNUM, CMD, ASK, DATALEN, [STATUS DATA], ETX, SUM]
  * STX: 0x02, ETX: 0x03
  * ADDR: Board address (0x00 or 0x01)
  * LOCKNUM: Lock number 0-11
  * CMD: 0x80 (Status) or 0x81 (Unlock)
  * ASK: 0x00
- * DATALEN: 0x00 (no data for basic commands)
+ * DATALEN: 0x00 (no data for basic commands), 0x02 (for status responses with 2-byte lock data)
+ * STATUS DATA: 2 bytes representing 12-lock bitfield (only for status responses)
+ *   - First byte: Locks 1-8 (bit 0 = Lock 1, bit 7 = Lock 8)
+ *   - Second byte: Locks 9-12 (bit 0 = Lock 9, bit 3 = Lock 12)
+ *   - Bit = 1 means LOCKED (closed), Bit = 0 means UNLOCKED (open)
  * SUM: Sum of all bytes modulo 256
  */
 
@@ -17,9 +21,10 @@ export interface CU12Packet {
   lockNum: number;    // Lock number 0-11
   command: number;    // 0x80 (Status) or 0x81 (Unlock)
   ask: number;        // 0x00
-  dataLen: number;    // 0x00 (no data for basic commands)
+  dataLen: number;    // 0x00 (no data for basic commands), 0x02 for status responses with lock data
   etx: number;        // 0x03
   checksum: number;   // Sum modulo 256
+  statusData?: number[]; // Optional status data bytes (for status responses)
 }
 
 export class CU12PacketUtils {
@@ -94,6 +99,16 @@ export class CU12PacketUtils {
       checksum: data[etxPosition + 1]
     };
 
+    // Extract status data if present (for status responses)
+    if (packet.dataLen > 0 && packet.command === 0x80) {
+      const statusDataStart = 7; // After ETX
+      const statusDataEnd = statusDataStart + packet.dataLen;
+
+      if (statusDataEnd <= data.length) {
+        packet.statusData = Array.from(data.slice(statusDataStart, statusDataEnd));
+      }
+    }
+
     // Verify checksum using sum modulo 256
     const packetBytes = [
       packet.stx,
@@ -104,6 +119,12 @@ export class CU12PacketUtils {
       packet.dataLen,
       packet.etx
     ];
+
+    // Include status data in checksum calculation
+    if (packet.statusData) {
+      packetBytes.push(...packet.statusData);
+    }
+
     const expectedChecksum = packetBytes.reduce((sum, byte) => sum + byte, 0) & 0xFF;
 
     if (packet.checksum !== expectedChecksum) {
@@ -125,6 +146,75 @@ export class CU12PacketUtils {
       default:
         return "UNKNOWN";
     }
+  }
+
+  /**
+   * Parse CU12 2-byte status data to extract 12-lock bitfield
+   * Returns array of 12 boolean values (true = locked, false = unlocked)
+   */
+  static parseStatusData(statusBytes: number[]): boolean[] {
+    if (statusBytes.length !== 2) {
+      throw new Error(`Invalid status data length: ${statusBytes.length}. Expected 2 bytes.`);
+    }
+
+    const lockStates: boolean[] = [];
+
+    // Parse first byte (locks 0-7)
+    const byte1 = statusBytes[0];
+    for (let i = 0; i < 8; i++) {
+      // Extract bit i (0 = LSB = Lock 1)
+      const bit = (byte1 >> i) & 0x01;
+      lockStates.push(bit === 1); // true = locked, false = unlocked
+    }
+
+    // Parse second byte (locks 8-11, only use 4 bits)
+    const byte2 = statusBytes[1];
+    for (let i = 0; i < 4; i++) {
+      // Extract bit i (0 = LSB = Lock 9)
+      const bit = (byte2 >> i) & 0x01;
+      lockStates.push(bit === 1); // true = locked, false = unlocked
+    }
+
+    return lockStates;
+  }
+
+  /**
+   * Convert CU12 lock states to KU16 slot states
+   * CU12 Board 0x00 → KU16 slots 1-12
+   * CU12 Board 0x01 → KU16 slots 13-15 (only first 3 locks used)
+   */
+  static convertCul12StatesToKu16Slots(boardAddress: number, lockStates: boolean[]): number[] {
+    const ku16Slots: number[] = [];
+
+    if (boardAddress === 0x00) {
+      // Board 0x00: Locks 0-11 → KU16 slots 1-12
+      for (let i = 0; i < Math.min(lockStates.length, 12); i++) {
+        ku16Slots.push(i); // KU16 slot 0-11 (displayed as 1-12)
+      }
+    } else if (boardAddress === 0x01) {
+      // Board 0x01: Locks 0-2 → KU16 slots 13-15
+      for (let i = 0; i < Math.min(lockStates.length, 3); i++) {
+        ku16Slots.push(i + 12); // KU16 slot 12-14 (displayed as 13-15)
+      }
+    }
+
+    return ku16Slots;
+  }
+
+  /**
+   * Format status data for logging
+   */
+  static formatStatusDataForLog(statusData: number[]): string {
+    if (!statusData || statusData.length === 0) {
+      return "No status data";
+    }
+
+    const lockStates = this.parseStatusData(statusData);
+    const lockInfo = lockStates.map((locked, index) =>
+      `Lock ${index + 1}: ${locked ? 'LOCKED' : 'UNLOCKED'}`
+    ).join(', ');
+
+    return `Status bytes: [${statusData.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}] → ${lockInfo}`;
   }
 
   /**

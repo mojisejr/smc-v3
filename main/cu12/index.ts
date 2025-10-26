@@ -167,20 +167,59 @@ export class CU12Controller {
   async receivedCheckState(packet: CU12Packet) {
     CU12Logger.logStatus('Received status response', {
       boardAddress: packet.address.toString(16),
-      command: CU12PacketUtils.getCommandName(packet.command)
+      command: CU12PacketUtils.getCommandName(packet.command),
+      hasStatusData: !!packet.statusData,
+      statusDataLength: packet.statusData?.length || 0
     });
 
     // Update board status
     this.boardStatus.set(packet.address, true);
 
+    // Process status data if available
+    if (packet.statusData && packet.statusData.length >= 2) {
+      try {
+        // Parse 2-byte status data to extract 12-lock bitfield
+        const lockStates = CU12PacketUtils.parseStatusData(packet.statusData);
+        const ku16Slots = CU12PacketUtils.convertCul12StatesToKu16Slots(packet.address, lockStates);
+
+        CU12Logger.logStatus('Parsed CU12 status data', {
+          boardAddress: packet.address.toString(16),
+          statusData: packet.statusData.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '),
+          lockStates: lockStates.map((locked, i) => `Lock ${i + 1}: ${locked ? 'LOCKED' : 'UNLOCKED'}`).join(', '),
+          ku16Slots: ku16Slots.map(slot => `Slot ${slot + 1}`).join(', ')
+        });
+
+        // Update slot states based on parsed status data
+        ku16Slots.forEach((ku16Slot, lockIndex) => {
+          const isLocked = lockStates[lockIndex];
+          this.slotStates.set(ku16Slot, !isLocked); // Store as "open" state (inverse of locked)
+        });
+
+        // Log the parsed status data
+        const statusLog = CU12PacketUtils.formatStatusDataForLog(packet.statusData);
+        systemLog(`check_state_received: board ${packet.address.toString(16)} ${statusLog}`);
+        await logger({
+          user: "system",
+          message: `check_state_received: board ${packet.address.toString(16)} ${statusLog}`,
+        });
+
+      } catch (error) {
+        CU12Logger.logError(error as Error, 'Failed to parse CU12 status data', {
+          boardAddress: packet.address.toString(16),
+          statusData: packet.statusData
+        });
+      }
+    } else {
+      // Fallback for responses without status data
+      systemLog(`check_state_received: board ${packet.address.toString(16)} data [${Array.from([packet.lockNum, packet.ask]).map(b => b.toString(16)).join(' ')}] (no status data)`);
+      await logger({
+        user: "system",
+        message: `check_state_received: board ${packet.address.toString(16)} data [${Array.from([packet.lockNum, packet.ask]).map(b => b.toString(16)).join(' ')}] (no status data)`,
+      });
+    }
+
     // Convert CU12 slot data to KU16-compatible format
     const slotData = await this.convertCU12DataToKU16Format();
-
-    systemLog(`check_state_received: board ${packet.address.toString(16)} data [${Array.from([packet.lockNum, packet.ask]).map(b => b.toString(16)).join(' ')}]`);
-    await logger({
-      user: "system",
-      message: `check_state_received: board ${packet.address.toString(16)} data [${Array.from([packet.lockNum, packet.ask]).map(b => b.toString(16)).join(' ')}]`,
-    });
 
     this.win.webContents.send("init-res", slotData);
   }
