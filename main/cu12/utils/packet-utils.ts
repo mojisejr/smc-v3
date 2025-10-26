@@ -1,18 +1,18 @@
 /**
  * CU12 Packet Utilities
  *
- * CU12 Protocol: [STX, ADDR, LOCKNUM, CMD, ASK, DATALEN, [STATUS DATA], ETX, SUM]
+ * CU12 Protocol: [STX, ADDR, LOCKNUM, CMD, ASK, DATALEN, ETX, SUM, STATUS0, STATUS1]
  * STX: 0x02, ETX: 0x03
  * ADDR: Board address (0x00 or 0x01)
  * LOCKNUM: Lock number 0-11
  * CMD: 0x80 (Status) or 0x81 (Unlock)
  * ASK: 0x00
  * DATALEN: 0x00 (no data for basic commands), 0x02 (for status responses with 2-byte lock data)
- * STATUS DATA: 2 bytes representing 12-lock bitfield (only for status responses)
+ * STATUS DATA: 2 bytes representing 12-lock bitfield (only for status responses) - comes AFTER checksum
  *   - First byte: Locks 1-8 (bit 0 = Lock 1, bit 7 = Lock 8)
  *   - Second byte: Locks 9-12 (bit 0 = Lock 9, bit 3 = Lock 12)
  *   - Bit = 1 means LOCKED (closed), Bit = 0 means UNLOCKED (open)
- * SUM: Sum of all bytes modulo 256
+ * SUM: Sum of all bytes modulo 256 (calculated on STX..ETX only, not including status bytes)
  */
 
 export interface CU12Packet {
@@ -70,19 +70,18 @@ export class CU12PacketUtils {
 
   /**
    * Parse CU12 response packet
-   * Handles variable-length packets (8-48 bytes) for status responses with data
+   * CU12 status responses are always 10 bytes: [STX, ADDR, LOCKNUM, CMD, ASK, DATALEN, ETX, SUM, STATUS0, STATUS1]
    */
   static parseResponse(data: Buffer): CU12Packet | null {
     if (data.length < 8 || data[0] !== this.STX) {
       return null;
     }
 
-    // Find ETX position (can vary with data length)
-    let etxPosition = 6; // Default position for no data
-    if (data.length > 8) {
-      // For packets with data, ETX position depends on data length
-      etxPosition = 6 + data[5]; // 6 + DATALEN
-    }
+    // For CU12, basic packets are 8 bytes, status responses are 10 bytes
+    const isStatusResponse = data.length >= 10 && data[3] === 0x80;
+
+    // ETX is always at position 6 for CU12 protocol
+    const etxPosition = 6;
 
     if (etxPosition >= data.length || data[etxPosition] !== this.ETX) {
       return null;
@@ -99,17 +98,17 @@ export class CU12PacketUtils {
       checksum: data[etxPosition + 1]
     };
 
-    // Extract status data if present (for status responses)
-    if (packet.dataLen > 0 && packet.command === 0x80) {
-      const statusDataStart = 7; // After ETX
-      const statusDataEnd = statusDataStart + packet.dataLen;
+    // Extract status data if present (for status responses) - comes AFTER checksum
+    if (isStatusResponse && data.length >= 10) {
+      const statusDataStart = 8; // After checksum (position 7)
+      const statusDataEnd = statusDataStart + 2; // CU12 status responses always have 2 bytes
 
       if (statusDataEnd <= data.length) {
         packet.statusData = Array.from(data.slice(statusDataStart, statusDataEnd));
       }
     }
 
-    // Verify checksum using sum modulo 256
+    // Verify checksum using sum modulo 256 (calculated on STX..ETX only, not including status bytes)
     const packetBytes = [
       packet.stx,
       packet.address,
@@ -119,11 +118,6 @@ export class CU12PacketUtils {
       packet.dataLen,
       packet.etx
     ];
-
-    // Include status data in checksum calculation
-    if (packet.statusData) {
-      packetBytes.push(...packet.statusData);
-    }
 
     const expectedChecksum = packetBytes.reduce((sum, byte) => sum + byte, 0) & 0xFF;
 
