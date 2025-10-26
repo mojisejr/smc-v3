@@ -226,23 +226,41 @@ export class CU12Controller {
 
   /**
    * Convert CU12 slot states to KU16-compatible format
+   * Maps 12 real CU12 hardware slots + 3 disabled mock slots (13-15)
    */
   private async convertCU12DataToKU16Format(): Promise<SlotState[]> {
     const slotFromDb = await Slot.findAll();
-
     const slotArr: SlotState[] = [];
 
+    // CU12 hardware provides 12 real slots (slots 1-12)
+    // KU16 expects 15 slots total, so slots 13-15 are mock/disabled
     for (let i = 0; i < Math.min(15, this.availableSlot); i++) {
       const dbSlot = slotFromDb[i];
       const isOpen = this.slotStates.get(i) || false;
 
+      // Determine if this is a real hardware slot or mock slot
+      const isRealHardwareSlot = i < 12; // Slots 0-11 are real (displayed as 1-12)
+      const isMockSlot = i >= 12; // Slots 12-14 are mock (displayed as 13-15)
+
+      let isActive = false;
+
+      if (isMockSlot) {
+        // Mock slots (13-15) are always disabled
+        isActive = false;
+      } else {
+        // Real hardware slots (1-12) use database and hardware state
+        // If no database record exists, assume slot is active (not disabled by user)
+        const dbIsActive = dbSlot?.dataValues?.isActive ?? true;
+        isActive = dbIsActive && !isOpen;
+      }
+
       slotArr.push({
-        slotId: dbSlot?.dataValues?.slotId || i + 1,
-        hn: dbSlot?.dataValues?.hn || null,
-        occupied: dbSlot?.dataValues?.occupied || false,
-        timestamp: dbSlot?.dataValues?.timestamp || null,
-        opening: dbSlot?.dataValues?.opening || false,
-        isActive: (dbSlot?.dataValues?.isActive && !isOpen) || false,
+        slotId: i + 1, // Display as slots 1-15
+        hn: isRealHardwareSlot ? (dbSlot?.dataValues?.hn || null) : null,
+        occupied: isRealHardwareSlot ? (dbSlot?.dataValues?.occupied || false) : false,
+        timestamp: isRealHardwareSlot ? (dbSlot?.dataValues?.timestamp || null) : null,
+        opening: isRealHardwareSlot ? (dbSlot?.dataValues?.opening || false) : false,
+        isActive: isActive,
       });
     }
 
