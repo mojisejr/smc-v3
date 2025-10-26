@@ -37,6 +37,7 @@ import { getAllSlotsHandler } from "./setting/ipcMain/getAllSlots";
 import { deactiveAllHandler } from "./ku16/ipcMain/deactivateAll";
 import { reactivateAdminHandler } from "./ku16/ipcMain/reactivate-admin";
 import { deactivateAdminHandler } from "./ku16/ipcMain/deactivate-admin";
+import { reactiveAllHanlder } from "./ku16/ipcMain/reactiveAll";
 import { createNewUserHandler } from "./user/createNewUser";
 import { deleteUserHandler } from "./user/deleteUser";
 import {
