@@ -35,7 +35,7 @@ export const useUnlock = () => {
       ipcRenderer.removeAllListeners("unlocking");
       ipcRenderer.removeAllListeners("init-res");
     };
-  }, [get]);
+  }, []);
 
   const unlock = (slot: number, hn: string, passkey: string) => {
     ipcRenderer.invoke("unlock", {
