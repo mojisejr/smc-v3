@@ -4,6 +4,7 @@ node_modules
 .next
 app
 dist
+tsconfig.tsbuildinfo
 
 docs/
 notes/
