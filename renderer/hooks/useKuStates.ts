@@ -33,10 +33,13 @@ export const useKuStates = () => {
   };
 
   useEffect(() => {
-    get();
+    // Set up the listener BEFORE calling get() to ensure we receive the response
     ipcRenderer.on("init-res", (event, payload) => {
       handleGetKuStates(event, payload);
     });
+
+    // Now call get() to trigger the status check
+    get();
   }, []);
 
   return {

@@ -22,7 +22,14 @@ export const unlockHandler = (cu12: CU12Controller) => {
 
       userName = user.dataValues.name;
 
-      await cu12.sendUnlock(payload);
+      // Specific error handling for CU12 packet parsing exceptions
+      try {
+        await cu12.sendUnlock(payload);
+      } catch (parsingError) {
+        // Handle packet parsing errors specifically
+        console.error('CU12 packet parsing error during unlock:', parsingError);
+        throw new Error('CU12 communication error - please check device connection');
+      }
       await logger({
         user: "system",
         message: `unlock: slot #${payload.slotId} by ${user.dataValues.name}`,
