@@ -35,6 +35,11 @@ export class CU12Controller {
   boardStatus: Map<number, boolean> = new Map(); // Map of board addresses to connection status
   slotStates: Map<number, boolean> = new Map(); // Map of slot IDs to open/closed state
 
+  // Debouncing properties
+  private lastStatusCheckTime: number = 0;
+  private statusCheckDebounceDelay: number = 500; // 500ms minimum between status checks
+  private statusCheckTimeout: NodeJS.Timeout | null = null;
+
   constructor(
     _path: string,
     _baudRate: number,
@@ -141,9 +146,43 @@ export class CU12Controller {
   }
 
   /**
-   * Send status check command to both boards
+   * Send status check command to both boards (with debouncing)
    */
   sendCheckStateToAllBoards() {
+    const now = Date.now();
+    const timeSinceLastCheck = now - this.lastStatusCheckTime;
+
+    // Clear any existing timeout
+    if (this.statusCheckTimeout) {
+      clearTimeout(this.statusCheckTimeout);
+      this.statusCheckTimeout = null;
+    }
+
+    // If not enough time has passed since last check, delay this one
+    if (timeSinceLastCheck < this.statusCheckDebounceDelay) {
+      const delayTime = this.statusCheckDebounceDelay - timeSinceLastCheck;
+      CU12Logger.logStatus('Debouncing status check', {
+        timeSinceLastCheck,
+        debounceDelay: this.statusCheckDebounceDelay,
+        actualDelay: delayTime
+      });
+
+      this.statusCheckTimeout = setTimeout(() => {
+        this.executeStatusCheck();
+      }, delayTime);
+      return;
+    }
+
+    // Execute immediately if enough time has passed
+    this.executeStatusCheck();
+  }
+
+  /**
+   * Execute the actual status check to both boards
+   */
+  private executeStatusCheck() {
+    this.lastStatusCheckTime = Date.now();
+
     CU12Logger.logStatus('Sending status check to all boards');
 
     // Check board 0x00
@@ -795,6 +834,10 @@ export class CU12Controller {
 
       // Remove data before STX
       if (stxIndex > 0) {
+        CU12Logger.logStatus('Removing invalid data before STX', {
+          removedBytes: stxIndex,
+          removedData: Array.from(this.buffer.slice(0, stxIndex)).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')
+        });
         this.buffer = this.buffer.slice(stxIndex);
       }
 
@@ -803,9 +846,58 @@ export class CU12Controller {
         return null; // Incomplete packet
       }
 
-      // Get DATALEN field to determine total packet size
+      // Validate that this looks like a real CU12 packet by checking ETX position
+      // ETX should be at position 6 for CU12 packets
+      const etxPosition = 6;
+      if (this.buffer[etxPosition] !== 0x03) {
+        // This STX doesn't lead to a valid packet, skip it and try the next STX
+        CU12Logger.logStatus('Invalid ETX at expected position, skipping this STX', {
+          stxIndex: 0,
+          expectedEtx: '0x03',
+          actualEtx: '0x' + this.buffer[etxPosition].toString(16),
+          bufferStart: Array.from(this.buffer.slice(0, Math.min(10, this.buffer.length))).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')
+        });
+        this.buffer = this.buffer.slice(1); // Remove this invalid STX and try again
+        return null;
+      }
+
+      // Additional validation: check for valid CU12 command and response structure
+      const command = this.buffer[3];
+      const ask = this.buffer[4];
       const dataLen = this.buffer[5];
+
+      // Validate command is in expected range (0x80-0x8F)
+      if (command < 0x80 || command > 0x8F) {
+        CU12Logger.logStatus('Invalid command byte, skipping STX', {
+          command: '0x' + command.toString(16),
+          expectedRange: '0x80-0x8F'
+        });
+        this.buffer = this.buffer.slice(1);
+        return null;
+      }
+
+      // Validate ASK field (0x00 for sent commands, 0x10-0x14 for responses)
+      if (ask !== 0x00 && (ask < 0x10 || ask > 0x14)) {
+        CU12Logger.logStatus('Invalid ASK byte, skipping STX', {
+          ask: '0x' + ask.toString(16),
+          expectedValues: '0x00 (sent) or 0x10-0x14 (responses)'
+        });
+        this.buffer = this.buffer.slice(1);
+        return null;
+      }
+
+      // Get DATALEN field to determine total packet size
       const totalPacketSize = 8 + dataLen; // 8 basic bytes + data bytes
+
+      // Validate DATALEN is reasonable (0-42 bytes per CU12 spec)
+      if (dataLen > 0x2A) {
+        CU12Logger.logStatus('Invalid DATALEN, skipping STX', {
+          dataLen: dataLen,
+          maxAllowed: 0x2A
+        });
+        this.buffer = this.buffer.slice(1);
+        return null;
+      }
 
       // Check if we have complete packet
       if (this.buffer.length < totalPacketSize) {

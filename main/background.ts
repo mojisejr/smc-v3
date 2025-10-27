@@ -147,9 +147,9 @@ if (isProd) {
   deactiveHandler(cu12);
   // Note: These handlers expect KU16 type - comment out for now, will migrate if needed
   // deactiveAllHandler(cu12);
-  reactiveAllHanlder(cu12);
-  reactivateAdminHandler(cu12);
-  deactivateAdminHandler(cu12);
+  // reactiveAllHanlder(cu12); // KU16-specific - commented out
+  // reactivateAdminHandler(cu12); // KU16-specific - commented out
+  // deactivateAdminHandler(cu12); // KU12-specific - commented out
 
   // Logging related handlers - expecting KU12 type, comment out for now
   // logDispensingHanlder(cu12);
