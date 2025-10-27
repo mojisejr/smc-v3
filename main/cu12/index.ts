@@ -487,59 +487,75 @@ export class CU12Controller {
     });
 
     try {
-      // Convert CU12 address/lock back to KU16 slot (returns 0-based)
-      const ku16Slot = mapCu12ToKu16Slot(packet.address, packet.lockNum);
-
-      console.log("this.openingSlot: ", this.openingSlot);
-      console.log("receivedLockedBackSlot (0-based): ", ku16Slot);
-      console.log("receivedLockedBackSlot (1-based): ", ku16Slot + 1);
-
-      // For STATUS responses with statusData, use parsed status instead of lockNum
-      let isOpeningSlotLockedBack = false;
-      if (
-        packet.statusData &&
-        packet.statusData.length >= 2 &&
-        this.openingSlot
-      ) {
-        const lockStates = CU12PacketUtils.parseStatusData(packet.statusData);
-        const openingSlotIndexZeroBased = this.openingSlot.slotId - 1;
-
-        CU12Logger.logStatus("Checking opening slot status from statusData", {
-          openingSlotId1Based: this.openingSlot.slotId,
-          openingSlotIndex0Based: openingSlotIndexZeroBased,
-          isLocked: lockStates[openingSlotIndexZeroBased],
-        });
-
-        isOpeningSlotLockedBack =
-          lockStates[openingSlotIndexZeroBased] === true;
-      }
-
-      // Compare with 1-based openingSlot.slotId
-      if (ku16Slot + 1 === this.openingSlot?.slotId) {
-        CU12Logger.logStatus("Slot still opening", {
-          slotId: this.openingSlot.slotId,
-        });
-        systemLog("locked_back_received: still opening");
-        await logger({
-          user: "system",
-          message: "locked_back_received: still opening",
-        });
-        this.win.webContents.send("unlocking", {
-          ...this.openingSlot,
-          unlocking: true,
-        });
+      // ONLY check the specific opening slot for lock-back detection
+      if (!this.openingSlot) {
+        CU12Logger.logStatus("No opening slot to check for lock-back");
         return;
       }
 
-      // Check if opening slot is now locked back (using statusData if available)
-      const shouldProcessLockedBack = packet.statusData
-        ? isOpeningSlotLockedBack
-        : this.slotStates.get(ku16Slot); // fallback to slotStates
+      CU12Logger.logStatus("Checking lock-back for opening slot", {
+        slotId: this.openingSlot.slotId,
+        hn: this.openingSlot.hn,
+        timestamp: this.openingSlot.timestamp,
+      });
 
-      if (shouldProcessLockedBack) {
+      // Parse status data to check ONLY the opening slot's lock state
+      if (packet.statusData && packet.statusData.length >= 2) {
+        const lockStates = CU12PacketUtils.parseStatusData(packet.statusData);
+        const openingSlotIndexZeroBased = this.openingSlot.slotId - 1;
+
+        // Check if the opening slot index is valid for the current board
+        // Board 0x00 covers slots 0-11 (KU16 slots 1-12)
+        // Board 0x01 covers slots 12-14 (KU16 slots 13-15)
+        const slotOnThisBoard =
+          (packet.address === 0x00 && openingSlotIndexZeroBased <= 11) ||
+          (packet.address === 0x01 && openingSlotIndexZeroBased >= 12 && openingSlotIndexZeroBased <= 14);
+
+        if (!slotOnThisBoard) {
+          // This status response is for a different board, not the one with our opening slot
+          CU12Logger.logStatus("Status response is for different board", {
+            packetBoard: packet.address.toString(16),
+            openingSlotId: this.openingSlot.slotId,
+          });
+          return;
+        }
+
+        // Get the lock index for this board (0-11 for board 0x00, 0-2 for board 0x01)
+        const lockIndexOnBoard =
+          packet.address === 0x00
+            ? openingSlotIndexZeroBased
+            : openingSlotIndexZeroBased - 12;
+
+        const isOpeningSlotLocked = lockStates[lockIndexOnBoard] === true;
+
+        CU12Logger.logStatus("Checking opening slot lock-back status", {
+          openingSlotId1Based: this.openingSlot.slotId,
+          openingSlotIndex0Based: openingSlotIndexZeroBased,
+          board: packet.address.toString(16),
+          lockIndexOnBoard: lockIndexOnBoard,
+          isLocked: isOpeningSlotLocked,
+        });
+
+        if (!isOpeningSlotLocked) {
+          // Slot is still unlocked (open)
+          CU12Logger.logStatus("Slot still opening", {
+            slotId: this.openingSlot.slotId,
+          });
+          systemLog("locked_back_received: still opening");
+          await logger({
+            user: "system",
+            message: "locked_back_received: still opening",
+          });
+          this.win.webContents.send("unlocking", {
+            ...this.openingSlot,
+            unlocking: true,
+          });
+          return;
+        }
+
+        // Slot is now locked back!
         CU12Logger.logStatus("Slot locked back", {
           slotId: this.openingSlot.slotId,
-          detectionMethod: packet.statusData ? "statusData" : "slotStates",
         });
         systemLog(
           `locked_back_received: slot #${this.openingSlot.slotId} locked back`
@@ -554,7 +570,6 @@ export class CU12Controller {
         this.dispensing = false;
 
         // Update slot state (using 0-based index)
-        const openingSlotIndexZeroBased = this.openingSlot.slotId - 1;
         this.slotStates.set(openingSlotIndexZeroBased, false);
 
         await Slot.update(
@@ -574,12 +589,13 @@ export class CU12Controller {
           unlocking: false,
         });
       } else {
-        CU12Logger.logStatus("Locked back for slot that was not open", {
-          ku16Slot0Based: ku16Slot,
-          ku16Slot1Based: ku16Slot + 1,
-          openingSlotId: this.openingSlot?.slotId,
-          hasStatusData: !!packet.statusData,
-        });
+        // No status data available, cannot determine lock-back state
+        CU12Logger.logStatus(
+          "Cannot determine lock-back without status data",
+          {
+            slotId: this.openingSlot.slotId,
+          }
+        );
       }
     } catch (error) {
       CU12Logger.logError(
