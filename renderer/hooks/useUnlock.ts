@@ -25,10 +25,6 @@ export const useUnlock = () => {
       }
     });
 
-    ipcRenderer.on("deactivated", (event, payload) => {
-      setUnlocking({ unlocking: false });
-    });
-
     // return () => {
     //   ipcRenderer.removeAllListeners("unlocking");
     // }

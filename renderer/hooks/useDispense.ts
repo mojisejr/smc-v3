@@ -55,10 +55,6 @@ export const useDispense = () => {
         reset: true,
       });
     });
-
-    ipcRenderer.on("deactivated", () => {
-      setDispensing({ reset: false, dispensing: false });
-    });
   }, []);
 
   const dispense = ({
