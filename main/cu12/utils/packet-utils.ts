@@ -78,7 +78,11 @@ export class CU12PacketUtils {
     }
 
     // For CU12, basic packets are 8 bytes, status responses are 10 bytes
-    const isStatusResponse = data.length >= 10 && data[3] === 0x80;
+    // Status response detection: CMD=0x80 (status request), ASK=0x10 (success response), DATALEN=0x02 (has status data)
+    const isStatusResponse = data.length >= 10 &&
+                             data[3] === 0x80 &&    // CMD = status request
+                             data[4] === 0x10 &&    // ASK = success response
+                             data[5] === 0x02;      // DATALEN = 2 bytes status data
 
     // ETX is always at position 6 for CU12 protocol
     const etxPosition = 6;
@@ -108,7 +112,9 @@ export class CU12PacketUtils {
       }
     }
 
-    // Verify checksum using sum modulo 256 (calculated on STX..ETX only, not including status bytes)
+    // Verify checksum using sum modulo 256
+    // For basic responses: calculated on STX..ETX only (7 bytes)
+    // For status responses: calculated on STX..ETX + status data bytes (9 bytes total)
     const packetBytes = [
       packet.stx,
       packet.address,
@@ -119,7 +125,14 @@ export class CU12PacketUtils {
       packet.etx
     ];
 
-    const expectedChecksum = packetBytes.reduce((sum, byte) => sum + byte, 0) & 0xFF;
+    // For status responses, include the status data bytes in checksum calculation
+    let checksumBytes = packetBytes;
+    if (isStatusResponse && packet.statusData && packet.statusData.length === 2) {
+      // Device includes status data bytes in checksum calculation for status responses
+      checksumBytes = [...packetBytes, ...packet.statusData];
+    }
+
+    const expectedChecksum = checksumBytes.reduce((sum, byte) => sum + byte, 0) & 0xFF;
 
     if (packet.checksum !== expectedChecksum) {
       return null;
@@ -224,7 +237,25 @@ export class CU12PacketUtils {
     }
 
     const packetObj = packet as CU12Packet;
-    return `${direction}: [STX, 0x${packetObj.address.toString(16).padStart(2, '0')}, 0x${packetObj.lockNum.toString(16).padStart(2, '0')}, 0x${packetObj.command.toString(16).padStart(2, '0')}, 0x${packetObj.ask.toString(16).padStart(2, '0')}, 0x${packetObj.dataLen.toString(16).padStart(2, '0')}, ETX, 0x${packetObj.checksum.toString(16).padStart(2, '0')}] (${this.getCommandName(packetObj.command)})`;
+
+    // Add null checks to prevent "Cannot read properties of undefined" error
+    if (!packetObj || typeof packetObj !== 'object') {
+      if (Buffer.isBuffer(packet)) {
+        return `${direction}: [${Array.from(packet).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}] (RAW BUFFER)`;
+      } else {
+        return `${direction}: [INVALID PACKET DATA]`;
+      }
+    }
+
+    // Safely access packet properties with defaults
+    const address = packetObj.address || 0;
+    const lockNum = packetObj.lockNum || 0;
+    const command = packetObj.command || 0;
+    const ask = packetObj.ask || 0;
+    const dataLen = packetObj.dataLen || 0;
+    const checksum = packetObj.checksum || 0;
+
+    return `${direction}: [STX, 0x${address.toString(16).padStart(2, '0')}, 0x${lockNum.toString(16).padStart(2, '0')}, 0x${command.toString(16).padStart(2, '0')}, 0x${ask.toString(16).padStart(2, '0')}, 0x${dataLen.toString(16).padStart(2, '0')}, ETX, 0x${checksum.toString(16).padStart(2, '0')}] (${this.getCommandName(command)})`;
   }
 }
 

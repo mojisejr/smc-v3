@@ -110,8 +110,8 @@ if (isProd) {
   // Initialize authentication system
   const auth = new Authentication();
 
-  // Start receiving data from CU12 device
-  cu12.receive();
+  // Start receiving data from CU12 device (now handled automatically in constructor)
+  // cu12.receive(); // Removed - now using handleIncomingData directly
   indicator.receive();
 
   //Activation key check
