@@ -78,7 +78,11 @@ export class CU12PacketUtils {
     }
 
     // For CU12, basic packets are 8 bytes, status responses are 10 bytes
-    const isStatusResponse = data.length >= 10 && data[3] === 0x80;
+    // Status response detection: CMD=0x80 (status request), ASK=0x10 (success response), DATALEN=0x02 (has status data)
+    const isStatusResponse = data.length >= 10 &&
+                             data[3] === 0x80 &&    // CMD = status request
+                             data[4] === 0x10 &&    // ASK = success response
+                             data[5] === 0x02;      // DATALEN = 2 bytes status data
 
     // ETX is always at position 6 for CU12 protocol
     const etxPosition = 6;
@@ -108,7 +112,9 @@ export class CU12PacketUtils {
       }
     }
 
-    // Verify checksum using sum modulo 256 (calculated on STX..ETX only, not including status bytes)
+    // Verify checksum using sum modulo 256
+    // For basic responses: calculated on STX..ETX only (7 bytes)
+    // For status responses: calculated on STX..ETX + status data bytes (9 bytes total)
     const packetBytes = [
       packet.stx,
       packet.address,
@@ -119,7 +125,14 @@ export class CU12PacketUtils {
       packet.etx
     ];
 
-    const expectedChecksum = packetBytes.reduce((sum, byte) => sum + byte, 0) & 0xFF;
+    // For status responses, include the status data bytes in checksum calculation
+    let checksumBytes = packetBytes;
+    if (isStatusResponse && packet.statusData && packet.statusData.length === 2) {
+      // Device includes status data bytes in checksum calculation for status responses
+      checksumBytes = [...packetBytes, ...packet.statusData];
+    }
+
+    const expectedChecksum = checksumBytes.reduce((sum, byte) => sum + byte, 0) & 0xFF;
 
     if (packet.checksum !== expectedChecksum) {
       return null;

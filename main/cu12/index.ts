@@ -714,9 +714,9 @@ export class CU12Controller {
       }
 
       // Parse status data if available (after the basic 10 bytes)
-      let statusData: Buffer | undefined;
+      let statusData: number[] | undefined;
       if (data.length > 10) {
-        statusData = data.slice(8, 8 + dataLen);
+        statusData = Array.from(data.slice(8, 8 + dataLen));
       }
 
       return {
@@ -728,9 +728,7 @@ export class CU12Controller {
         dataLen,
         etx,
         checksum,
-        statusData,
-        status0,
-        status1
+        statusData
       };
     } catch (error) {
       CU12Logger.logError(error as Error, 'Error parsing CU12 packet', {
