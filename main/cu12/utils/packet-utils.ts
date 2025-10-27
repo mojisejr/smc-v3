@@ -224,7 +224,25 @@ export class CU12PacketUtils {
     }
 
     const packetObj = packet as CU12Packet;
-    return `${direction}: [STX, 0x${packetObj.address.toString(16).padStart(2, '0')}, 0x${packetObj.lockNum.toString(16).padStart(2, '0')}, 0x${packetObj.command.toString(16).padStart(2, '0')}, 0x${packetObj.ask.toString(16).padStart(2, '0')}, 0x${packetObj.dataLen.toString(16).padStart(2, '0')}, ETX, 0x${packetObj.checksum.toString(16).padStart(2, '0')}] (${this.getCommandName(packetObj.command)})`;
+
+    // Add null checks to prevent "Cannot read properties of undefined" error
+    if (!packetObj || typeof packetObj !== 'object') {
+      if (Buffer.isBuffer(packet)) {
+        return `${direction}: [${Array.from(packet).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')}] (RAW BUFFER)`;
+      } else {
+        return `${direction}: [INVALID PACKET DATA]`;
+      }
+    }
+
+    // Safely access packet properties with defaults
+    const address = packetObj.address || 0;
+    const lockNum = packetObj.lockNum || 0;
+    const command = packetObj.command || 0;
+    const ask = packetObj.ask || 0;
+    const dataLen = packetObj.dataLen || 0;
+    const checksum = packetObj.checksum || 0;
+
+    return `${direction}: [STX, 0x${address.toString(16).padStart(2, '0')}, 0x${lockNum.toString(16).padStart(2, '0')}, 0x${command.toString(16).padStart(2, '0')}, 0x${ask.toString(16).padStart(2, '0')}, 0x${dataLen.toString(16).padStart(2, '0')}, ETX, 0x${checksum.toString(16).padStart(2, '0')}] (${this.getCommandName(command)})`;
   }
 }
 
