@@ -1,6 +1,7 @@
 import { ipcRenderer } from "electron";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import { useKuStates } from "./useKuStates";
 
 interface Unlocking {
   slotId?: number;
@@ -13,6 +14,7 @@ export const useUnlock = () => {
   const [unlocking, setUnlocking] = useState<Unlocking>({
     unlocking: false,
   });
+  const { get } = useKuStates();
 
   useEffect(() => {
     ipcRenderer.on("unlocking", (event, payload) => {
@@ -25,9 +27,14 @@ export const useUnlock = () => {
       }
     });
 
-    // return () => {
-    //   ipcRenderer.removeAllListeners("unlocking");
-    // }
+    ipcRenderer.on("init-res", () => {
+      get();
+    });
+
+    return () => {
+      ipcRenderer.removeAllListeners("unlocking");
+      ipcRenderer.removeAllListeners("init-res");
+    };
   }, []);
 
   const unlock = (slot: number, hn: string, passkey: string) => {
