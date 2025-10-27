@@ -703,33 +703,19 @@ export class CU12Controller {
         return null;
       }
 
-      // Validate checksum (simple XOR checksum for CU12)
-      const expectedChecksum = this.calculateCU12Checksum(data.slice(0, 7));
-      if (checksum !== expectedChecksum) {
-        CU12Logger.logStatus('Checksum mismatch', {
-          expected: '0x' + expectedChecksum.toString(16),
-          received: '0x' + checksum.toString(16)
+      // Validate checksum using our fixed CU12PacketUtils method
+      // This handles both basic responses (7 bytes) and status responses (9 bytes including status data)
+      const parsedPacket = CU12PacketUtils.parseResponse(data);
+      if (!parsedPacket) {
+        CU12Logger.logStatus('Checksum mismatch or packet validation failed', {
+          expected: 'Valid CU12 packet with correct checksum',
+          received: 'Invalid packet or checksum mismatch'
         });
         return null;
       }
 
-      // Parse status data if available (after the basic 10 bytes)
-      let statusData: number[] | undefined;
-      if (data.length > 10) {
-        statusData = Array.from(data.slice(8, 8 + dataLen));
-      }
-
-      return {
-        stx,
-        address,
-        lockNum,
-        command,
-        ask,
-        dataLen,
-        etx,
-        checksum,
-        statusData
-      };
+      // Return the already validated packet from our fixed method
+      return parsedPacket;
     } catch (error) {
       CU12Logger.logError(error as Error, 'Error parsing CU12 packet', {
         data: Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')
