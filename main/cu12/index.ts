@@ -493,6 +493,12 @@ export class CU12Controller {
         return;
       }
 
+      CU12Logger.logStatus("Checking lock-back for opening slot", {
+        slotId: this.openingSlot.slotId,
+        hn: this.openingSlot.hn,
+        timestamp: this.openingSlot.timestamp,
+      });
+
       // Parse status data to check ONLY the opening slot's lock state
       if (packet.statusData && packet.statusData.length >= 2) {
         const lockStates = CU12PacketUtils.parseStatusData(packet.statusData);
