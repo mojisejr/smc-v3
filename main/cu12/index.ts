@@ -667,6 +667,7 @@ export class CU12Controller {
       // 8-byte packets: [STX, ADDR, LOCKNUM, CMD, ASK, DATALEN, ETX, SUM] (unlock responses)
       // 10-byte packets: [STX, ADDR, LOCKNUM, CMD, ASK, DATALEN, ETX, SUM, STATUS0, STATUS1] (status responses)
       // Minimum packet size is 8 bytes
+      // Apply minimum length validation - must have at least 8 bytes for basic CU12 packet
       if (data.length < 8) {
         CU12Logger.logStatus('Packet too short for CU12 format', {
           length: data.length,
