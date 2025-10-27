@@ -493,8 +493,6 @@ export class CU12Controller {
         return;
       }
 
-      console.log("this.openingSlot: ", this.openingSlot);
-
       // Parse status data to check ONLY the opening slot's lock state
       if (packet.statusData && packet.statusData.length >= 2) {
         const lockStates = CU12PacketUtils.parseStatusData(packet.statusData);
