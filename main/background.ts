@@ -37,6 +37,7 @@ import { getAllSlotsHandler } from "./setting/ipcMain/getAllSlots";
 import { deactiveAllHandler } from "./ku16/ipcMain/deactivateAll";
 import { reactivateAdminHandler } from "./ku16/ipcMain/reactivate-admin";
 import { deactivateAdminHandler } from "./ku16/ipcMain/deactivate-admin";
+import { reactiveAllHanlder } from "./ku16/ipcMain/reactiveAll";
 import { createNewUserHandler } from "./user/createNewUser";
 import { deleteUserHandler } from "./user/deleteUser";
 import {
@@ -109,8 +110,8 @@ if (isProd) {
   // Initialize authentication system
   const auth = new Authentication();
 
-  // Start receiving data from CU12 device
-  cu12.receive();
+  // Start receiving data from CU12 device (now handled automatically in constructor)
+  // cu12.receive(); // Removed - now using handleIncomingData directly
   indicator.receive();
 
   //Activation key check
@@ -123,7 +124,7 @@ if (isProd) {
   getSettingHandler(mainWindow);
   getUserHandler(mainWindow);
   // updateSettingHandler expects KU12 but we can use CU12 for compatibility
-// updateSettingHandler(mainWindow, cu12 as any); // Temporarily comment out for basic functionality
+  updateSettingHandler(mainWindow, cu12 as any);
   getAllSlotsHandler();
   createNewUserHandler();
   deleteUserHandler();
@@ -146,9 +147,9 @@ if (isProd) {
   deactiveHandler(cu12);
   // Note: These handlers expect KU16 type - comment out for now, will migrate if needed
   // deactiveAllHandler(cu12);
-  // reactiveAllHanlder(cu12);
-  // reactivateAdminHandler(cu12);
-  // deactivateAdminHandler(cu12);
+  reactiveAllHanlder(cu12);
+  reactivateAdminHandler(cu12);
+  deactivateAdminHandler(cu12);
 
   // Logging related handlers - expecting KU12 type, comment out for now
   // logDispensingHanlder(cu12);

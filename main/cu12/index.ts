@@ -1,4 +1,4 @@
-import { SerialPort, PacketLengthParser } from "serialport";
+import { SerialPort } from "serialport";
 import { Slot } from "../../db/model/slot.model";
 import { BrowserWindow, ipcMain } from "electron";
 import { CU12PacketUtils, mapKu16SlotToCu12, mapCu12ToKu16Slot, CU12Packet } from "./utils/packet-utils";
@@ -17,7 +17,7 @@ export interface CU12SlotData {
 
 export class CU12Controller {
   serialPort: SerialPort;
-  parser: PacketLengthParser;
+  private buffer: Buffer = Buffer.alloc(0);
   path: string;
   baudRate: number;
   autoOpen: boolean = true;
@@ -73,12 +73,10 @@ export class CU12Controller {
       }
     );
 
-    this.parser = this.serialPort.pipe(
-      new PacketLengthParser({
-        delimiter: 0x02,
-        packetOverhead: 8,
-      })
-    );
+    // CU12 packets are binary, handle data directly without ReadlineParser
+    this.serialPort.on('data', (data) => {
+      this.handleIncomingData(data);
+    });
 
     // Initialize board status maps
     this.boardStatus.set(0x00, false);
@@ -226,23 +224,41 @@ export class CU12Controller {
 
   /**
    * Convert CU12 slot states to KU16-compatible format
+   * Maps 12 real CU12 hardware slots + 3 disabled mock slots (13-15)
    */
   private async convertCU12DataToKU16Format(): Promise<SlotState[]> {
     const slotFromDb = await Slot.findAll();
-
     const slotArr: SlotState[] = [];
 
+    // CU12 hardware provides 12 real slots (slots 1-12)
+    // KU16 expects 15 slots total, so slots 13-15 are mock/disabled
     for (let i = 0; i < Math.min(15, this.availableSlot); i++) {
       const dbSlot = slotFromDb[i];
       const isOpen = this.slotStates.get(i) || false;
 
+      // Determine if this is a real hardware slot or mock slot
+      const isRealHardwareSlot = i < 12; // Slots 0-11 are real (displayed as 1-12)
+      const isMockSlot = i >= 12; // Slots 12-14 are mock (displayed as 13-15)
+
+      let isActive = false;
+
+      if (isMockSlot) {
+        // Mock slots (13-15) are always disabled
+        isActive = false;
+      } else {
+        // Real hardware slots (1-12) use database and hardware state
+        // If no database record exists, assume slot is active (not disabled by user)
+        const dbIsActive = dbSlot?.dataValues?.isActive ?? true;
+        isActive = dbIsActive && !isOpen;
+      }
+
       slotArr.push({
-        slotId: dbSlot?.dataValues?.slotId || i + 1,
-        hn: dbSlot?.dataValues?.hn || null,
-        occupied: dbSlot?.dataValues?.occupied || false,
-        timestamp: dbSlot?.dataValues?.timestamp || null,
-        opening: dbSlot?.dataValues?.opening || false,
-        isActive: (dbSlot?.dataValues?.isActive && !isOpen) || false,
+        slotId: i + 1, // Display as slots 1-15
+        hn: isRealHardwareSlot ? (dbSlot?.dataValues?.hn || null) : null,
+        occupied: isRealHardwareSlot ? (dbSlot?.dataValues?.occupied || false) : false,
+        timestamp: isRealHardwareSlot ? (dbSlot?.dataValues?.timestamp || null) : null,
+        opening: isRealHardwareSlot ? (dbSlot?.dataValues?.opening || false) : false,
+        isActive: isActive,
       });
     }
 
@@ -643,55 +659,216 @@ export class CU12Controller {
   }
 
   /**
-   * Main data receiver for CU12 packets
+   * Enhanced packet parsing for CU12 with flexible length handling
    */
-  receive() {
-    CU12Logger.logStatus('Starting CU12 packet receiver');
-
-    this.parser.on("data", async (data: Buffer) => {
-      try {
-        CU12Logger.logPacket('RX', data, 'Raw packet received');
-
-        const packet = CU12PacketUtils.parseResponse(data);
-        if (!packet) {
-          CU12Logger.logStatus('Invalid CU12 packet received', {
-            data: Array.from(data).map(b => b.toString(16)).join(' ')
-          });
-          return;
-        }
-
-        const commandName = CU12PacketUtils.getCommandName(packet.command);
-        CU12Logger.logPacket('RX', packet, `Parsed CU12 packet: ${commandName}`);
-
-        // Handle different packet types based on current state
-        if (this.opening && !this.dispensing && !this.waitForLockedBack) {
-          // Opening but not dispensing and not wait for lock
-          CU12Logger.logStatus('Processing unlock response');
-          await this.receivedUnlockState(packet);
-        } else if (this.opening && this.waitForLockedBack) {
-          // Opening and wait for locked back
-          CU12Logger.logStatus('Processing locked back response');
-          await this.receivedLockedBackState(packet);
-          await this.receivedCheckState(packet); // Also update status
-        } else if (this.opening && this.dispensing && !this.waitForDispenseLockedBack) {
-          // Opening and dispensing but not wait for lock
-          CU12Logger.logStatus('Processing dispensing response');
-          await this.receivedDispenseState(packet);
-        } else if (this.opening && this.dispensing && this.waitForDispenseLockedBack) {
-          // Opening, dispensing, and wait for lock
-          CU12Logger.logStatus('Processing dispensing locked back response');
-          await this.receivedDispenseLockedBackState(packet);
-          await this.receivedCheckState(packet); // Also update status
-        } else {
-          // Regular status check
-          CU12Logger.logStatus('Processing status check response');
-          await this.receivedCheckState(packet);
-        }
-      } catch (error) {
-        CU12Logger.logError(error as Error, 'Error processing CU12 packet', {
-          data: Array.from(data).map(b => b.toString(16)).join(' ')
+  private parseCU12PacketFlexible(data: Buffer): CU12Packet | null {
+    try {
+      // CU12 packet structure: [STX, ADDR, LOCKNUM, CMD, ASK, DATALEN, ETX, SUM, STATUS0, STATUS1]
+      // Minimum packet size is 10 bytes (without additional data)
+      if (data.length < 10) {
+        CU12Logger.logStatus('Packet too short for CU12 format', {
+          length: data.length,
+          data: Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')
         });
+        return null;
       }
-    });
+
+      // Extract basic packet components
+      const stx = data[0];
+      const address = data[1];
+      const lockNum = data[2];
+      const command = data[3];
+      const ask = data[4];
+      const dataLen = data[5];
+      const etx = data[6];
+      const checksum = data[7];
+      const status0 = data[8];
+      const status1 = data[9];
+
+      // Validate STX (Start of Text)
+      if (stx !== 0x02) {
+        CU12Logger.logStatus('Invalid STX byte', {
+          expected: '0x02',
+          received: '0x' + stx.toString(16)
+        });
+        return null;
+      }
+
+      // Validate ETX (End of Text)
+      if (etx !== 0x03) {
+        CU12Logger.logStatus('Invalid ETX byte', {
+          expected: '0x03',
+          received: '0x' + etx.toString(16)
+        });
+        return null;
+      }
+
+      // Validate checksum using our fixed CU12PacketUtils method
+      // This handles both basic responses (7 bytes) and status responses (9 bytes including status data)
+      const parsedPacket = CU12PacketUtils.parseResponse(data);
+      if (!parsedPacket) {
+        CU12Logger.logStatus('Checksum mismatch or packet validation failed', {
+          expected: 'Valid CU12 packet with correct checksum',
+          received: 'Invalid packet or checksum mismatch'
+        });
+        return null;
+      }
+
+      // Return the already validated packet from our fixed method
+      return parsedPacket;
+    } catch (error) {
+      CU12Logger.logError(error as Error, 'Error parsing CU12 packet', {
+        data: Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Calculate CU12 checksum (XOR of first 7 bytes)
+   */
+  private calculateCU12Checksum(data: Buffer): number {
+    let checksum = 0;
+    for (let i = 0; i < Math.min(7, data.length); i++) {
+      checksum ^= data[i];
+    }
+    return checksum;
+  }
+
+  /**
+   * Handle incoming binary data with proper buffer accumulation for CU12 packets
+   */
+  private handleIncomingData(chunk: Buffer) {
+    try {
+      // Accumulate data in buffer
+      this.buffer = Buffer.concat([this.buffer, chunk]);
+
+      CU12Logger.logStatus('Received data chunk', {
+        chunkLength: chunk.length,
+        bufferLength: this.buffer.length,
+        chunkHex: this.bufferToHex(chunk)
+      });
+
+      // Process complete packets from buffer
+      while (this.buffer.length >= 8) { // Minimum CU12 packet size
+        const packet = this.extractCompletePacket();
+        if (packet) {
+          this.processParsedPacket(packet);
+        } else {
+          break; // No complete packet available
+        }
+      }
+    } catch (error) {
+      CU12Logger.logError(error as Error, 'Error handling incoming data');
+    }
+  }
+
+  /**
+   * Convert buffer to hex string for debugging
+   */
+  private bufferToHex(buffer: Buffer): string {
+    return Array.from(buffer).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ');
+  }
+
+  /**
+   * Extract a complete CU12 packet from buffer
+   */
+  private extractCompletePacket(): Buffer | null {
+    try {
+      // Find STX (0x02) - packet start marker
+      let stxIndex = -1;
+      for (let i = 0; i < this.buffer.length; i++) {
+        if (this.buffer[i] === 0x02) {
+          stxIndex = i;
+          break;
+        }
+      }
+
+      if (stxIndex === -1) {
+        // No STX found, clear buffer
+        this.buffer = Buffer.alloc(0);
+        return null;
+      }
+
+      // Remove data before STX
+      if (stxIndex > 0) {
+        this.buffer = this.buffer.slice(stxIndex);
+      }
+
+      // Check minimum packet length: STX + ADDR + LOCKNUM + CMD + ASK + DATALEN + ETX + SUM = 8 bytes
+      if (this.buffer.length < 8) {
+        return null; // Incomplete packet
+      }
+
+      // Get DATALEN field to determine total packet size
+      const dataLen = this.buffer[5];
+      const totalPacketSize = 8 + dataLen; // 8 basic bytes + data bytes
+
+      // Check if we have complete packet
+      if (this.buffer.length < totalPacketSize) {
+        return null; // Incomplete packet
+      }
+
+      // Extract complete packet
+      const packetData = this.buffer.slice(0, totalPacketSize);
+      this.buffer = this.buffer.slice(totalPacketSize); // Remove processed packet
+
+      return packetData;
+    } catch (error) {
+      CU12Logger.logError(error as Error, 'Error extracting packet');
+      // Clear buffer on error to prevent stuck state
+      this.buffer = Buffer.alloc(0);
+      return null;
+    }
+  }
+
+  /**
+   * Process a parsed CU12 packet
+   */
+  private async processParsedPacket(packetData: Buffer) {
+    try {
+      CU12Logger.logPacket('RX', packetData, 'Complete CU12 packet received');
+
+      // Parse packet using existing method
+      const packet = this.parseCU12PacketFlexible(packetData);
+      if (!packet) {
+        CU12Logger.logStatus('Invalid CU12 packet received', {
+          data: Array.from(packetData).map(b => b.toString(16)).join(' ')
+        });
+        return;
+      }
+
+      const commandName = CU12PacketUtils.getCommandName(packet.command);
+      CU12Logger.logPacket('RX', packet, `Parsed CU12 packet: ${commandName}`);
+
+      // Handle different packet types based on current state
+      if (this.opening && !this.dispensing && !this.waitForLockedBack) {
+        // Opening but not dispensing and not wait for lock
+        CU12Logger.logStatus('Processing unlock response');
+        await this.receivedUnlockState(packet);
+      } else if (this.opening && this.waitForLockedBack) {
+        // Opening and wait for locked back
+        CU12Logger.logStatus('Processing locked back response');
+        await this.receivedLockedBackState(packet);
+        await this.receivedCheckState(packet); // Also update status
+      } else if (this.opening && this.dispensing && !this.waitForDispenseLockedBack) {
+        // Opening and dispensing but not wait for lock
+        CU12Logger.logStatus('Processing dispensing response');
+        await this.receivedDispenseState(packet);
+      } else if (this.opening && this.dispensing && this.waitForDispenseLockedBack) {
+        // Opening, dispensing, and wait for lock
+        CU12Logger.logStatus('Processing dispensing locked back response');
+        await this.receivedDispenseLockedBackState(packet);
+        await this.receivedCheckState(packet); // Also update status
+      } else {
+        // Regular status check
+        CU12Logger.logStatus('Processing status check response');
+        await this.receivedCheckState(packet);
+      }
+    } catch (error) {
+      CU12Logger.logError(error as Error, 'Error processing CU12 packet', {
+        data: Array.from(packetData).map(b => b.toString(16)).join(' ')
+      });
+    }
   }
 }
