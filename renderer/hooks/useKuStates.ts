@@ -42,13 +42,21 @@ export const useKuStates = () => {
   };
 
   const isDispensible = (payload: IPayload[]) => {
-    const isDispensible = payload.filter((p) => p.occupied == true);
+    const isDispensible = payload.filter((p) => p.occupied === true);
     setCanDispense(isDispensible.length <= 0 ? false : true);
   };
 
   useEffect(() => {
     // Call get() which will set up the listener and trigger the initial status check
     get();
+    
+    // Cleanup function to remove event listener on unmount
+    return () => {
+      if (listenerSetupRef.current) {
+        ipcRenderer.removeAllListeners("init-res");
+        listenerSetupRef.current = false;
+      }
+    };
   }, []);
 
   return {
