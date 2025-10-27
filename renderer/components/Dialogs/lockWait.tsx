@@ -12,13 +12,6 @@ interface LockWaitProps {
 
 const LockWait = ({ slotNo, hn, onClose, onOpenDeactive }: LockWaitProps) => {
 
- useEffect(() => {
-ipcRenderer.on("deactivated", ()  =>  {
-	onClose();
-});
-
-}, []);
-
 const handleCheckLockedBack = () => {
   ipcRenderer.invoke("check-locked-back", {slotId: slotNo});
 }

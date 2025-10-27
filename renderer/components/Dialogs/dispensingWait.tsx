@@ -10,12 +10,6 @@ interface DispensingWaitProps {
 }
 
 const DispensingWait = ({ slotNo, hn, onClose, onOpenDeactive }: DispensingWaitProps) => {
-  useEffect(() => {
-	ipcRenderer.on("deactivated", () => {
-	onClose();
-});
-  }, []);
-
 
 const handleCheckLockedBack = () => {
   ipcRenderer.invoke("check-locked-back", {slotId: slotNo});
