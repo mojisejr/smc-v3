@@ -1,5 +1,6 @@
 import { ipcRenderer } from "electron";
 import { useEffect } from "react";
+import { toast } from "react-toastify";
 import Loading from "../Shared/Loading";
 
 interface LockWaitProps {
@@ -10,8 +11,21 @@ interface LockWaitProps {
 }
 
 const LockWait = ({ slotNo, hn, onClose, onOpenDeactive }: LockWaitProps) => {
-  const handleCheckLockedBack = () => {
-    ipcRenderer.invoke("check-locked-back", { slotId: slotNo });
+  const handleCheckLockedBack = async () => {
+    try {
+      const result = await ipcRenderer.invoke("check-locked-back", { slotId: slotNo });
+      
+      if (result.success) {
+        toast.success("ตรวจสอบการล็อกช่องสำเร็จ");
+        onClose();
+      } else {
+        toast.error(result.message || "เกิดข้อผิดพลาดในการตรวจสอบการล็อกช่อง");
+        onClose();
+      }
+    } catch (error) {
+      toast.error("เกิดข้อผิดพลาดในการตรวจสอบการล็อกช่อง");
+      onClose();
+    }
   };
 
   return (
