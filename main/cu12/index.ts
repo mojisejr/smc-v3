@@ -663,9 +663,11 @@ export class CU12Controller {
    */
   private parseCU12PacketFlexible(data: Buffer): CU12Packet | null {
     try {
-      // CU12 packet structure: [STX, ADDR, LOCKNUM, CMD, ASK, DATALEN, ETX, SUM, STATUS0, STATUS1]
-      // Minimum packet size is 10 bytes (without additional data)
-      if (data.length < 10) {
+      // CU12 packet structure:
+      // 8-byte packets: [STX, ADDR, LOCKNUM, CMD, ASK, DATALEN, ETX, SUM] (unlock responses)
+      // 10-byte packets: [STX, ADDR, LOCKNUM, CMD, ASK, DATALEN, ETX, SUM, STATUS0, STATUS1] (status responses)
+      // Minimum packet size is 8 bytes
+      if (data.length < 8) {
         CU12Logger.logStatus('Packet too short for CU12 format', {
           length: data.length,
           data: Array.from(data).map(b => '0x' + b.toString(16).padStart(2, '0')).join(' ')
@@ -682,8 +684,8 @@ export class CU12Controller {
       const dataLen = data[5];
       const etx = data[6];
       const checksum = data[7];
-      const status0 = data[8];
-      const status1 = data[9];
+      const status0 = data.length >= 10 ? data[8] : undefined;
+      const status1 = data.length >= 10 ? data[9] : undefined;
 
       // Validate STX (Start of Text)
       if (stx !== 0x02) {
