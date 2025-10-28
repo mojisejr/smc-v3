@@ -13,6 +13,18 @@ export class IndicatorDevice {
       path: _path,
       baudRate: _baudRate,
       autoOpen: true,
+    }, (error) => {
+      if (error) {
+        console.error(`[Indicator] Failed to open port ${_path}:`, error.message);
+        // Send error status to frontend but don't crash
+        this.win.webContents.send("indicator-error", {
+          success: false,
+          message: `Failed to open indicator port ${_path}: ${error.message}`,
+          port: _path
+        });
+      } else {
+        console.log(`[Indicator] Successfully connected to port ${_path} @${_baudRate} baud`);
+      }
     });
 
     this.parser = this.serialPort.pipe(new ReadlineParser({ delimiter: "\n" }));
