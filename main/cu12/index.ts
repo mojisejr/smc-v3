@@ -688,10 +688,10 @@ export class CU12Controller {
       message: `dispensed_received: dispense state for slot #${ku16Slot}`,
     });
 
-    if (ku16Slot !== this.openingSlot?.slotId) {
+    if (ku16Slot + 1 !== this.openingSlot?.slotId) {
       CU12Logger.logStatus("Dispensing response for different slot", {
         expectedSlot: this.openingSlot?.slotId,
-        receivedSlot: ku16Slot,
+        receivedSlot: ku16Slot + 1,
       });
       return;
     }
@@ -714,9 +714,9 @@ export class CU12Controller {
   async receivedDispenseLockedBackState(packet: CU12Packet) {
     const ku16Slot = mapCu12ToKu16Slot(packet.address, packet.lockNum);
 
-    if (ku16Slot === this.openingSlot?.slotId) {
+    if (ku16Slot + 1 === this.openingSlot?.slotId) {
       CU12Logger.logStatus("Dispensing still in progress", {
-        slotId: ku16Slot,
+        slotId: ku16Slot + 1,
       });
       systemLog("dispense_locked_back_received: still opening");
       this.win.webContents.send("dispensing", {

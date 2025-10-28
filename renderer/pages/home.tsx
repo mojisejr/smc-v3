@@ -149,12 +149,19 @@ function Home() {
   const [closeClearOrCon, setCloseClearOrCon] = useState<boolean>(false);
   const [closeLockWait, setCloseLockWait] = useState<boolean>(false);
   const [openDeactivate, setOpenDeactivate] = useState<boolean>(false);
+  const [closeDispenseWait, setCloseDispenseWait] = useState<boolean>(false);
 
   useEffect(() => {
     if (unlocking.unlocking) {
       setCloseLockWait(false);
     }
   }, [unlocking]);
+
+  useEffect(() => {
+    if (dispensing.dispensing) {
+      setCloseDispenseWait(false);
+    }
+  }, [dispensing]);
 
   useEffect(() => {
     if (dispensing.continue) {
@@ -237,13 +244,14 @@ function Home() {
         />
       </Modal>
       <Modal
-        isOpen={dispensing.dispensing}
-        onClose={() => setCloseLockWait(true)}
+        // isOpen={dispensing.dispensing}
+        isOpen={!closeDispenseWait && dispensing.dispensing}
+        onClose={() => setCloseDispenseWait(true)}
       >
         <DispensingWait
           slotNo={dispensing.slotId}
           hn={dispensing.hn}
-          onClose={() => setCloseLockWait(true)}
+          onClose={() => setCloseDispenseWait(true)}
           onOpenDeactive={() => setOpenDeactivate(true)}
         />
       </Modal>
