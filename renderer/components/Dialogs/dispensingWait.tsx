@@ -17,6 +17,7 @@ const DispensingWait = ({
 }: DispensingWaitProps) => {
   const handleCheckLockedBack = () => {
     ipcRenderer.invoke("check-locked-back", { slotId: slotNo });
+    ipcRenderer.invoke("init", { init: true });
   };
 
   return (

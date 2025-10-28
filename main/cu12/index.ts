@@ -749,6 +749,12 @@ export class CU12Controller {
         dispensing: false,
         reset: true,
       });
+
+      // Send dispensing-reset event to trigger ClearOrContinue modal
+      this.win.webContents.send("dispensing-reset", {
+        slotId: this.openingSlot.slotId,
+        hn: this.openingSlot.hn,
+      });
     }
   }
 
