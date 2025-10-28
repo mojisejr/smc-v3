@@ -714,6 +714,18 @@ export class CU12Controller {
   async receivedDispenseLockedBackState(packet: CU12Packet) {
     const ku16Slot = mapCu12ToKu16Slot(packet.address, packet.lockNum);
 
+    // [CU12] DEBUG: Dispensing state detection
+    CU12Logger.logStatus("DEBUG: Dispensing state detection", {
+      ku16Slot: ku16Slot,
+      ku16SlotPlus1: ku16Slot + 1,
+      openingSlotId: this.openingSlot?.slotId,
+      comparisonResult: (ku16Slot + 1 === this.openingSlot?.slotId),
+      slotState: this.slotStates.get(ku16Slot),
+      isSlotLocked: !this.slotStates.get(ku16Slot),
+      boardAddress: packet.address.toString(16),
+      lockNum: packet.lockNum
+    });
+
     if (ku16Slot + 1 === this.openingSlot?.slotId) {
       CU12Logger.logStatus("Dispensing still in progress", {
         slotId: ku16Slot + 1,
@@ -731,6 +743,12 @@ export class CU12Controller {
     if (!this.slotStates.get(ku16Slot)) {
       CU12Logger.logStatus("Dispensing completed - slot locked back", {
         slotId: ku16Slot,
+        payload: {
+          slotId: this.openingSlot.slotId,
+          hn: this.openingSlot.hn,
+          dispensing: false,
+          reset: true
+        }
       });
       systemLog(
         `dispense_locked_back_received: slot #${this.openingSlot.slotId} locked back`
@@ -744,16 +762,39 @@ export class CU12Controller {
       this.opening = false;
       this.dispensing = false;
 
+      CU12Logger.logStatus("Sending dispensing reset events", {
+        event: "dispensing",
+        payload: {
+          slotId: this.openingSlot.slotId,
+          hn: this.openingSlot.hn,
+          dispensing: false,
+          reset: true
+        }
+      });
+
       this.win.webContents.send("dispensing", {
         ...this.openingSlot,
         dispensing: false,
         reset: true,
       });
 
+      CU12Logger.logStatus("Sending dispensing-reset event", {
+        event: "dispensing-reset",
+        payload: {
+          slotId: this.openingSlot.slotId,
+          hn: this.openingSlot.hn,
+        }
+      });
+
       // Send dispensing-reset event to trigger ClearOrContinue modal
       this.win.webContents.send("dispensing-reset", {
         slotId: this.openingSlot.slotId,
         hn: this.openingSlot.hn,
+      });
+    } else {
+      CU12Logger.logStatus("Slot still unlocked - not sending reset events", {
+        ku16Slot: ku16Slot,
+        slotState: this.slotStates.get(ku16Slot)
       });
     }
   }
