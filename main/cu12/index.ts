@@ -805,7 +805,8 @@ export class CU12Controller {
     );
 
     CU12Logger.logSlotState(slotId, "unknown", "reset", "resetSlot");
-    this.slotStates.set(slotId, false);
+    // Fix: slotStates uses 0-based index, slotId is 1-based
+    this.slotStates.set(slotId - 1, false);
 
     await logger({
       user: "system",
