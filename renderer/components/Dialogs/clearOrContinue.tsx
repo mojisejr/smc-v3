@@ -1,6 +1,6 @@
 import { ipcRenderer } from "electron";
 import { useDispense } from "../../hooks/useDispense";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import Loading from "../Shared/Loading";
 import { toast } from "react-toastify";
 import { useDispensingContext } from "../../contexts/dispensingContext";
@@ -13,8 +13,17 @@ interface ClearOrContinueProps {
 
 const ClearOrContinue = ({ slotNo, hn, onClose }: ClearOrContinueProps) => {
   const [loading, setLoading] = useState(false);
-  const { reset, keep } = useDispense();
+  const { reset, keep, dispensing } = useDispense();
   const { passkey, setPasskey } = useDispensingContext();
+
+  // Close modal and reset state when hardware confirms the clear operation
+  useEffect(() => {
+    if (dispensing.reset && dispensing.slotId === slotNo && loading) {
+      reset(slotNo);
+      setLoading(false);
+      onClose();
+    }
+  }, [dispensing.reset, dispensing.slotId, slotNo, loading, onClose]);
 
   function handleClear() {
     if (!passkey) {
@@ -23,11 +32,19 @@ const ClearOrContinue = ({ slotNo, hn, onClose }: ClearOrContinueProps) => {
     }
 
     setLoading(true);
-    ipcRenderer.invoke("reset", { slotId: slotNo, hn, passkey }).then(() => {
-      reset(slotNo);
-      setPasskey(null);
-      onClose();
-    });
+    ipcRenderer
+      .invoke("reset", { slotId: slotNo, hn, passkey })
+      .then(() => {
+        setPasskey(null);
+        // Don't close immediately — wait for the main process to emit
+        // 'dispensing' event with reset: true, which the parent Navbar
+        // will detect and close the modal via dispensing.reset state change
+      })
+      .catch((error) => {
+        setLoading(false);
+        toast.error("จ่ายยาไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+        console.error("Reset failed:", error);
+      });
   }
   function handleContinue() {
     if (!passkey) {
