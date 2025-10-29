@@ -13,38 +13,32 @@ interface ClearOrContinueProps {
 
 const ClearOrContinue = ({ slotNo, hn, onClose }: ClearOrContinueProps) => {
   const [loading, setLoading] = useState(false);
-  const { reset, keep, dispensing } = useDispense();
+  const { reset, keep } = useDispense();
   const { passkey, setPasskey } = useDispensingContext();
 
-  // Close modal and reset state when hardware confirms the clear operation
-  useEffect(() => {
-    if (dispensing.reset && dispensing.slotId === slotNo && loading) {
-      reset(slotNo);
-      setLoading(false);
-      onClose();
-    }
-  }, [dispensing.reset, dispensing.slotId, slotNo, loading, onClose]);
-
-  function handleClear() {
+  
+  async function handleClear() {
     if (!passkey) {
       toast.error("กรุณากรอกรหัสผ่าน");
       return;
     }
 
     setLoading(true);
-    ipcRenderer
-      .invoke("reset", { slotId: slotNo, hn, passkey })
-      .then(() => {
+    try {
+      const result = await ipcRenderer.invoke("reset", { slotId: slotNo, hn, passkey });
+      if (result.success) {
+        reset(slotNo);
         setPasskey(null);
-        // Don't close immediately — wait for the main process to emit
-        // 'dispensing' event with reset: true, which the parent Navbar
-        // will detect and close the modal via dispensing.reset state change
-      })
-      .catch((error) => {
-        setLoading(false);
-        toast.error("จ่ายยาไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
-        console.error("Reset failed:", error);
-      });
+        onClose();
+      } else {
+        throw new Error(result.message || "Reset failed");
+      }
+    } catch (error) {
+      console.error("Reset failed:", error);
+      toast.error("เคลียร์ช่องไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setLoading(false);
+    }
   }
   function handleContinue() {
     if (!passkey) {
