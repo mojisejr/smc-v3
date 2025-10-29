@@ -811,6 +811,10 @@ export class CU12Controller {
       user: "system",
       message: `resetSlot: slot #${slotId}`,
     });
+
+    // Send updated slot data to frontend to refresh UI
+    const updatedSlotData = await this.convertCU12DataToKU16Format();
+    this.win.webContents.send("init-res", updatedSlotData);
   }
 
   /**
