@@ -1,6 +1,6 @@
 import { ipcRenderer } from "electron";
 import { useDispense } from "../../hooks/useDispense";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import Loading from "../Shared/Loading";
 import { toast } from "react-toastify";
 import { useDispensingContext } from "../../contexts/dispensingContext";
@@ -16,18 +16,29 @@ const ClearOrContinue = ({ slotNo, hn, onClose }: ClearOrContinueProps) => {
   const { reset, keep } = useDispense();
   const { passkey, setPasskey } = useDispensingContext();
 
-  function handleClear() {
+  
+  async function handleClear() {
     if (!passkey) {
       toast.error("กรุณากรอกรหัสผ่าน");
       return;
     }
 
     setLoading(true);
-    ipcRenderer.invoke("reset", { slotId: slotNo, hn, passkey }).then(() => {
-      reset(slotNo);
-      setPasskey(null);
-      onClose();
-    });
+    try {
+      const result = await ipcRenderer.invoke("reset", { slotId: slotNo, hn, passkey });
+      if (result.success) {
+        reset(slotNo);
+        setPasskey(null);
+        onClose();
+      } else {
+        throw new Error(result.message || "Reset failed");
+      }
+    } catch (error) {
+      console.error("Reset failed:", error);
+      toast.error("เคลียร์ช่องไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setLoading(false);
+    }
   }
   function handleContinue() {
     if (!passkey) {

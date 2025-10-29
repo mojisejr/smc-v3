@@ -42,19 +42,34 @@ export const useDispense = () => {
   };
 
   useEffect(() => {
-    ipcRenderer.on("dispensing", (event, payload) => {
+    const onDispensing = (
+      _event: Electron.IpcRendererEvent,
+      payload: Dispensing
+    ) => {
       setDispensing(payload);
-    });
+    };
 
-    ipcRenderer.on("dispensing-reset", (event, payload) => {
-      setDispensing({
-        ...dispensing,
+    const onDispensingReset = (
+      _event: Electron.IpcRendererEvent,
+      payload: { slotId: number; hn?: string }
+    ) => {
+      // Use functional update to avoid stale closure over `dispensing`
+      setDispensing((prev) => ({
+        ...prev,
         slotId: payload.slotId,
         hn: payload.hn,
         dispensing: false,
         reset: true,
-      });
-    });
+      }));
+    };
+
+    ipcRenderer.on("dispensing", onDispensing);
+    ipcRenderer.on("dispensing-reset", onDispensingReset);
+
+    return () => {
+      ipcRenderer.removeListener("dispensing", onDispensing);
+      ipcRenderer.removeListener("dispensing-reset", onDispensingReset);
+    };
   }, []);
 
   const dispense = ({
