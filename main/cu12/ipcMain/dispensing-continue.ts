@@ -1,8 +1,8 @@
 import { ipcMain } from "electron";
-import { KU16 } from "..";
+import { CU12Controller } from "..";
 import { logDispensing, logger } from "../../logger";
 import { User } from "../../../db/model/user.model";
-export const dispenseContinueHandler = (ku16: KU16) => {
+export const dispenseContinueHandler = (cu12: CU12Controller) => {
   ipcMain.handle("dispense-continue", async (event, payload) => {
     let userId = null;
     let userName = null;
@@ -28,10 +28,10 @@ export const dispenseContinueHandler = (ku16: KU16) => {
         message: "จ่ายยาสำเร็จยังมียาอยู่ในช่อง",
       });
 
-      await ku16.sleep(1000);
-      ku16.sendCheckState();
+      await cu12.sleep(1000);
+      cu12.sendCheckState();
     } catch (error) {
-      ku16.win.webContents.send("dispense-error", {
+      cu12.win.webContents.send("dispense-error", {
         message: "ไม่สามารถจ่ายยาได้กรุณาตรวจสอบรหัสผู้ใช้งานอีกครั้ง",
       });
 
