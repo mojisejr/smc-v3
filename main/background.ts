@@ -30,7 +30,7 @@ import { getSetting } from "./setting/getSetting";
 import { getSettingHandler } from "./setting/ipcMain/getSetting";
 import { updateSettingHandler } from "./setting/ipcMain/updateSetting";
 import { checkLockedBackHandler } from "./cu12/ipcMain/checkLockedBack";
-// import { dispenseContinueHandler } from "./ku16/ipcMain/dispensing-continue"; // Keep existing for now
+import { dispenseContinueHandler } from "./cu12/ipcMain/dispensing-continue";
 import { getPortListHandler } from "./cu12/ipcMain/getPortList";
 import { getUserHandler } from "./auth/ipcMain/getUser";
 import { getAllSlotsHandler } from "./setting/ipcMain/getAllSlots";
@@ -142,7 +142,7 @@ if (isProd) {
   dispenseHandler(cu12);
   resetHandler(cu12);
   // Keep existing handlers that work with CU12
-  // dispenseContinueHandler(cu12); // Keep existing for now
+  dispenseContinueHandler(cu12);
   // forceResetHanlder(cu12); // Keep existing for now
   deactiveHandler(cu12);
   // Note: These handlers expect KU16 type - comment out for now, will migrate if needed
