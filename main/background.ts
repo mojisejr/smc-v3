@@ -38,6 +38,7 @@ import { deactiveAllHandler } from "./cu12/ipcMain/deactivateAll";
 import { reactiveAllHandler } from "./cu12/ipcMain/reactiveAll";
 import { deactivateAdminHandler } from "./cu12/ipcMain/deactivate-admin";
 import { reactivateAdminHandler } from "./cu12/ipcMain/reactivate-admin";
+import { forceResetHandler } from "./cu12/ipcMain/forceReset";
 import { createNewUserHandler } from "./user/createNewUser";
 import { deleteUserHandler } from "./user/deleteUser";
 import {
@@ -143,7 +144,7 @@ if (isProd) {
   resetHandler(cu12);
   // Keep existing handlers that work with CU12
   dispenseContinueHandler(cu12);
-  // forceResetHanlder(cu12); // Keep existing for now
+  forceResetHandler(cu12);
   deactiveHandler(cu12);
   // Note: These handlers expect KU16 type - comment out for now, will migrate if needed
   deactiveAllHandler(cu12);
