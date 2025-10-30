@@ -34,7 +34,7 @@ import { dispenseContinueHandler } from "./cu12/ipcMain/dispensing-continue";
 import { getPortListHandler } from "./cu12/ipcMain/getPortList";
 import { getUserHandler } from "./auth/ipcMain/getUser";
 import { getAllSlotsHandler } from "./setting/ipcMain/getAllSlots";
-import { deactiveAllHandler } from "./ku16/ipcMain/deactivateAll";
+import { deactiveAllHandler } from "./cu12/ipcMain/deactivateAll";
 import { reactivateAdminHandler } from "./ku16/ipcMain/reactivate-admin";
 import { deactivateAdminHandler } from "./ku16/ipcMain/deactivate-admin";
 import { reactiveAllHanlder } from "./ku16/ipcMain/reactiveAll";
@@ -146,7 +146,7 @@ if (isProd) {
   // forceResetHanlder(cu12); // Keep existing for now
   deactiveHandler(cu12);
   // Note: These handlers expect KU16 type - comment out for now, will migrate if needed
-  // deactiveAllHandler(cu12);
+  deactiveAllHandler(cu12);
   // reactiveAllHanlder(cu12); // KU16-specific - commented out
   // reactivateAdminHandler(cu12); // KU16-specific - commented out
   // deactivateAdminHandler(cu12); // KU12-specific - commented out
