@@ -35,9 +35,9 @@ import { getPortListHandler } from "./cu12/ipcMain/getPortList";
 import { getUserHandler } from "./auth/ipcMain/getUser";
 import { getAllSlotsHandler } from "./setting/ipcMain/getAllSlots";
 import { deactiveAllHandler } from "./cu12/ipcMain/deactivateAll";
+import { reactiveAllHandler } from "./cu12/ipcMain/reactiveAll";
 import { reactivateAdminHandler } from "./ku16/ipcMain/reactivate-admin";
 import { deactivateAdminHandler } from "./ku16/ipcMain/deactivate-admin";
-import { reactiveAllHanlder } from "./ku16/ipcMain/reactiveAll";
 import { createNewUserHandler } from "./user/createNewUser";
 import { deleteUserHandler } from "./user/deleteUser";
 import {
@@ -147,7 +147,7 @@ if (isProd) {
   deactiveHandler(cu12);
   // Note: These handlers expect KU16 type - comment out for now, will migrate if needed
   deactiveAllHandler(cu12);
-  // reactiveAllHanlder(cu12); // KU16-specific - commented out
+  reactiveAllHandler(cu12);
   // reactivateAdminHandler(cu12); // KU16-specific - commented out
   // deactivateAdminHandler(cu12); // KU12-specific - commented out
 
