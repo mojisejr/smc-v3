@@ -36,8 +36,8 @@ import { getUserHandler } from "./auth/ipcMain/getUser";
 import { getAllSlotsHandler } from "./setting/ipcMain/getAllSlots";
 import { deactiveAllHandler } from "./cu12/ipcMain/deactivateAll";
 import { reactiveAllHandler } from "./cu12/ipcMain/reactiveAll";
+import { deactivateAdminHandler } from "./cu12/ipcMain/deactivate-admin";
 import { reactivateAdminHandler } from "./ku16/ipcMain/reactivate-admin";
-import { deactivateAdminHandler } from "./ku16/ipcMain/deactivate-admin";
 import { createNewUserHandler } from "./user/createNewUser";
 import { deleteUserHandler } from "./user/deleteUser";
 import {
@@ -149,7 +149,7 @@ if (isProd) {
   deactiveAllHandler(cu12);
   reactiveAllHandler(cu12);
   // reactivateAdminHandler(cu12); // KU16-specific - commented out
-  // deactivateAdminHandler(cu12); // KU12-specific - commented out
+  deactivateAdminHandler(cu12);
 
   // Logging related handlers - expecting KU12 type, comment out for now
   // logDispensingHanlder(cu12);
