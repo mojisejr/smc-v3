@@ -1,9 +1,9 @@
 import { ipcMain } from "electron";
-import { KU16 } from "..";
+import { CU12Controller } from "..";
 import { User } from "../../../db/model/user.model";
 import { logDispensing, logger } from "../../logger";
 
-export const forceResetHanlder = (ku16: KU16) => {
+export const forceResetHandler = (cu12: CU12Controller) => {
   ipcMain.handle("force-reset", async (event, payload) => {
     let userId = null;
     let userName = null;
@@ -25,7 +25,7 @@ export const forceResetHanlder = (ku16: KU16) => {
       userName = user.dataValues.name;
       userId = user.dataValues.id;
 
-      await ku16.resetSlot(payload.slotId);
+      await cu12.resetSlot(payload.slotId);
       await logger({
         user: "system",
         message: `force-reset: slot #${payload.slotId} by ${userName}`,
@@ -37,10 +37,10 @@ export const forceResetHanlder = (ku16: KU16) => {
         process: "force-reset",
         message: payload.reason,
       });
-      await ku16.sleep(1000);
-      ku16.sendCheckState();
+      await cu12.sleep(1000);
+      cu12.sendCheckState();
     } catch (error) {
-      ku16.win.webContents.send("force-reset-error", {
+      cu12.win.webContents.send("force-reset-error", {
         message: "ล้างช่องไม่สำเร็จกรุณาลองใหม่อีกครั้ง",
       });
       await logger({
