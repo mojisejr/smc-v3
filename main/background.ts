@@ -11,12 +11,10 @@ import { initHandler } from "./cu12/ipcMain/init";
 import { unlockHandler } from "./cu12/ipcMain/unlock";
 import { dispenseHandler } from "./cu12/ipcMain/dispensing";
 import { resetHandler } from "./cu12/ipcMain/reset";
-import {
-  exportLogsHandler,
-  logDispensingHanlder,
-  LoggingHandler,
-} from "./logger";
 import { deactiveHandler } from "./cu12/ipcMain/deactivate";
+import { LoggingHandler } from "./cu12/ipcMain/logging";
+import { logDispensingHanlder } from "./cu12/ipcMain/logDispensing";
+import { exportLogsHandler } from "./cu12/ipcMain/exportLogs";
 // Note: Some handlers like forceReset, reactiveAll, deactiveAll, etc. are basic handlers that can work with CU12
 // We'll use the existing ones for now and can migrate them if needed
 
@@ -152,10 +150,10 @@ if (isProd) {
   reactivateAdminHandler(cu12);
   deactivateAdminHandler(cu12);
 
-  // Logging related handlers - expecting KU12 type, comment out for now
-  // logDispensingHanlder(cu12);
-  // LoggingHandler(cu12);
-  // exportLogsHandler(cu12);
+  // Logging related handlers
+  logDispensingHanlder(cu12);
+  LoggingHandler(cu12);
+  exportLogsHandler(cu12);
 
   // Load the application UI based on environment
   if (isProd) {
