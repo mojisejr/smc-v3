@@ -1,7 +1,3 @@
----
-applyTo: "**"
----
-
 ## Project Overview
 
 **Project Name**: Smart Medication Cart Version 1.0 (SMC)
