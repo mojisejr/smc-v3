@@ -51,6 +51,13 @@
 - Creates atomic tasks based on current mode (MANUAL/COPILOT)
 - Contains: EXECUTION MODE field, 100% validation requirements
 
+**Knowledge Issue Template** - `/docs/KNOWLEDGE-TEMP.md`:
+
+- Used for: `=kupdate [category] "[topic]"`
+- **ALWAYS creates GitHub Issue** - Never creates local .md files
+- Creates structured knowledge entries with AI honest feedback
+- Contains: Problem → Solution → Lessons Learned → Links
+
 ### Mode-Based Execution System
 
 **Default Mode**: MANUAL (human implementation)
@@ -81,6 +88,13 @@
 =impl > [issue-number]         # Implementation workflow for specific GitHub issue (triggers based on current mode)
 =impl > [issue-number] [msg]   # Implementation with additional context/clarification
 =pr > [feedback]               # Create Pull Request from pushed feature branch
+
+# Knowledge Management
+=kupdate [category] "[topic]"   # Create Knowledge GitHub Issue using /docs/KNOWLEDGE-TEMP.md (NEVER .md file)
+=ksearch "[query]"              # Search across all knowledge entries
+=khub                          # Go to main Knowledge Hub issue
+=krecent                       # Show last 5 knowledge updates
+=kcategory [category]           # Show knowledge for specific category
 
 # Other Commands
 =rrr > [message]              # Create daily retrospective GitHub Issue (NEVER .md file)
@@ -133,6 +147,81 @@
 
 - **MANUAL Mode**: User commits and pushes, then uses `=pr` to create PR
 - **COPILOT Mode**: Agent handles complete implementation including PR creation via `=pr`
+
+---
+
+## 🧠 Knowledge Management System
+
+### Knowledge Workflow Integration
+
+**Knowledge Capture Points**:
+- **After Implementation**: When `=impl` completes successfully, use `=kupdate` to document learnings
+- **After Context Discussion**: When `=fcs` reaches key decisions, use `=kupdate` to capture insights
+- **After Chat Discoveries**: When breakthrough solutions are found, use `=kupdate` to preserve knowledge
+
+### Knowledge Categories
+
+**Standard Categories**:
+- `device` - CU12, KU16, SerialPort, hardware integration
+- `database` - SQLite, Sequelize, migrations, queries
+- `architecture` - Design patterns, structural decisions
+- `debug` - Error solutions, troubleshooting, workarounds
+- `workflow` - Process improvements, automation
+- `frontend` - React, Electron, UI components
+- `backend` - Node.js, APIs, services
+
+### Knowledge ID System
+
+**Format**: `KNOW-[CATEGORY]-[NUMBER]`
+- Example: `KNOW-DEVICE-001`, `KNOW-DATABASE-015`
+- Auto-increment per category
+- Easy reference and cross-linking
+
+### Auto-Label Creation
+
+**System Behavior**:
+```bash
+# When =kupdate device "CU12 lock-back solution" is used:
+# 1. Check if 'knowledge-device' label exists
+# 2. If not, create: gh label create knowledge-device --color "1d76db" --description "Device integration knowledge"
+# 3. Apply label to knowledge issue
+# 4. Auto-generate Knowledge ID: KNOW-DEVICE-001
+```
+
+**Knowledge Labels Created Automatically**:
+- `knowledge-device` - Device integration knowledge
+- `knowledge-database` - Database and persistence knowledge
+- `knowledge-architecture` - System design and patterns
+- `knowledge-debug` - Debugging and troubleshooting
+- `knowledge-workflow` - Development workflow improvements
+
+### Knowledge Search & Retrieval
+
+**Search Capabilities**:
+```bash
+=ksearch "CU12 lock-back"    # Full-text search across all knowledge
+=kcategory device           # Show all device-related knowledge
+=krecent                    # Last 5 knowledge entries
+=khub                       # Go to main Knowledge Hub issue
+```
+
+**Search Optimization**:
+- Knowledge entries include searchable tags
+- Problem statements use clear, technical language
+- Solutions include specific keywords and technologies
+- Cross-references link related knowledge
+
+### Knowledge Structure
+
+**Each Knowledge Entry Contains**:
+- **Problem Statement**: Clear description of what was solved
+- **Solution Implementation**: Step-by-step working solution
+- **AI Honest Feedback**: What worked, what didn't, lessons learned
+- **Things to Avoid**: Common pitfalls and their consequences
+- **Prerequisites**: What to check before starting
+- **AI Self-Improvement**: Insights for future problem-solving
+- **Links & References**: Connections to source issues/PRs/code
+- **Verification Status**: Testing and validation state
 
 ---
 
@@ -292,6 +381,7 @@ npm run lint             # Lint code (must 100% pass)
 
 - `/docs/ISSUE-TEMP.md` - Context Issue Template for iterative discussions
 - `/docs/TASK-ISSUE-TEMP.md` - Atomic Task Template for implementation
+- `/docs/KNOWLEDGE-TEMP.md` - Knowledge Issue Template for structured learning
 
 ### Performance Metrics
 
