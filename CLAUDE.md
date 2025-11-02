@@ -24,8 +24,8 @@
 ### 📋 MANDATORY WORKFLOW RULES
 
 - ✅ **ALWAYS** sync main branch before any implementation: `git checkout main && git pull origin main`
-- ✅ **ALWAYS** verify task issue exists: `[TASK-XXX-X]` before `=impl`
-- ✅ **ALWAYS** use feature branch naming: `feature/task-[number]-[description]`
+- ✅ **ALWAYS** verify task issue exists: `#[issue-number]` before `=impl`
+- ✅ **ALWAYS** use feature branch naming: `feature/task-[issue-number]-[description]`
 - ✅ **ALWAYS** ensure 100% build success before commit: `npm run build`
 - ✅ **ALWAYS** ensure 100% lint pass before commit: `npm run lint`
 - ✅ **ALWAYS** use template-guided workflow with proper context validation
@@ -39,15 +39,24 @@
 
 **Context Issue Template** - `/docs/ISSUE-TEMP.md`:
 
-- Used for: `=fcs > [topic-name]` or `=fcs > [ISSUE-XXX]`
+- Used for: `=fcs > [topic-name]` or `=fcs > [CONTEXT]`
+- **ALWAYS creates GitHub Issue** - Never creates local .md files
 - Creates living document for iterative discussion
 - Contains: DISCUSSION LOG, ACCUMULATED CONTEXT, PLANNING READINESS CHECKLIST
 
 **Task Issue Template** - `/docs/TASK-ISSUE-TEMP.md`:
 
 - Used for: `=plan > [task description]`
+- **ALWAYS creates GitHub Issue** - Never creates local .md files
 - Creates atomic tasks based on current mode (MANUAL/COPILOT)
 - Contains: EXECUTION MODE field, 100% validation requirements
+
+**Knowledge Issue Template** - `/docs/KNOWLEDGE-TEMP.md`:
+
+- Used for: `=kupdate [category] "[topic]"`
+- **ALWAYS creates GitHub Issue** - Never creates local .md files
+- Creates structured knowledge entries with AI honest feedback
+- Contains: Problem → Solution → Lessons Learned → Links
 
 ### Mode-Based Execution System
 
@@ -70,39 +79,47 @@
 
 ```bash
 # Context Management
-=fcs > [topic-name]           # Create new Context Issue using /docs/ISSUE-TEMP.md
-=fcs > [ISSUE-XXX]            # Update existing Context Issue using /docs/ISSUE-TEMP.md
+=fcs > [topic-name]           # Create new Context GitHub Issue (NEVER .md file)
+=fcs > [CONTEXT]            # Update existing Context GitHub Issue (NEVER .md file)
 =fcs list                     # Show all active Context Issues
 
 # Task Management
-=plan > [task description]      # Create Task Issue using /docs/TASK-ISSUE-TEMP.md (assigned by current mode)
-=impl > [task-number]          # Implementation workflow (triggers based on current mode)
+=plan > [task description]      # Create Task GitHub Issue using /docs/TASK-ISSUE-TEMP.md (assigned by current mode) - NEVER .md file
+=impl > [issue-number]         # Implementation workflow for specific GitHub issue (triggers based on current mode)
+=impl > [issue-number] [msg]   # Implementation with additional context/clarification
 =pr > [feedback]               # Create Pull Request from pushed feature branch
 
+# Knowledge Management
+=kupdate [category] "[topic]"   # Create Knowledge GitHub Issue using /docs/KNOWLEDGE-TEMP.md (NEVER .md file)
+=ksearch "[query]"              # Search across all knowledge entries
+=khub                          # Go to main Knowledge Hub issue
+=krecent                       # Show last 5 knowledge updates
+=kcategory [category]           # Show knowledge for specific category
+
 # Other Commands
-=rrr > [message]              # Create daily retrospective file and Issue
+=rrr > [message]              # Create daily retrospective GitHub Issue (NEVER .md file)
 ```
 
 ### Template-Driven Workflow Process
 
-1. **Phase 1**: `=fcs > [topic]` → Create initial context issue
-2. **Phase 2**: `=fcs > [ISSUE-XXX]` → Update context iteratively
+1. **Phase 1**: `=fcs > [topic]` → Create initial context **GitHub Issue** (NEVER .md file)
+2. **Phase 2**: `=fcs > [CONTEXT]` → Update context **GitHub Issue** iteratively
 3. **Phase 3**: Context reaches `[Ready for Planning]` status → Ready for planning
-4. **Phase 4**: `=plan > [task]` → Create atomic tasks
-5. **Phase 5**: `=impl > [task-number]` → Implement based on mode
+4. **Phase 4**: `=plan > [task]` → Create atomic **GitHub Issues** (NEVER .md files)
+5. **Phase 5**: `=impl > [issue-number]` → Implement specific GitHub issue based on mode
 
 ### Implementation Workflow (MANDATORY)
 
 **Pre-Implementation Checklist**:
 
 1. **Staging Sync**: `git checkout staging && git pull origin staging`
-2. **Task Verification**: Confirm Task Issue `[TASK-XXX-X]` exists and is linked to Context Issue
-3. **Context Status**: Verify Context Issue is `[Ready for Planning]` or `[Implementation Ready]`
+2. **Task Verification**: Confirm Task **GitHub Issue** `#[issue-number]` exists and is [TASK] type
+3. **Context Status**: Verify Context **GitHub Issue** is `[Ready for Planning]` or `[Implementation Ready]`
 4. **Environment Check**: `git status` - working directory must be clean
 
 **Implementation Steps**:
 
-1. **Create Feature Branch**: `git checkout -b feature/task-[number]-[description]`
+1. **Create Feature Branch**: `git checkout -b feature/task-[issue-number]-[description]`
 2. **Execute Implementation**: Follow task requirements, use TodoWrite for complex tasks
 3. **Debug with Enhanced VS Code Setup**:
    - Use "Debug Main Process (Launch)" for hardware communication debugging
@@ -116,7 +133,7 @@
    git add .
    git commit -m "feat: [feature description]
 
-   - Address TASK-XXX-X: [task title]
+   - Address #[issue-number]: [task title]
    - Build validation: 100% PASS
    - Linter validation: 100% PASS
 
@@ -124,12 +141,87 @@
    Co-Authored-By: Claude <noreply@anthropic.com>"
    ```
 
-6. **Push Branch**: `git push -u origin feature/task-[number]-[description]`
+6. **Push Branch**: `git push -u origin feature/task-[issue-number]-[description]`
 
 **Post-Implementation**:
 
 - **MANUAL Mode**: User commits and pushes, then uses `=pr` to create PR
 - **COPILOT Mode**: Agent handles complete implementation including PR creation via `=pr`
+
+---
+
+## 🧠 Knowledge Management System
+
+### Knowledge Workflow Integration
+
+**Knowledge Capture Points**:
+- **After Implementation**: When `=impl` completes successfully, use `=kupdate` to document learnings
+- **After Context Discussion**: When `=fcs` reaches key decisions, use `=kupdate` to capture insights
+- **After Chat Discoveries**: When breakthrough solutions are found, use `=kupdate` to preserve knowledge
+
+### Knowledge Categories
+
+**Standard Categories**:
+- `device` - CU12, KU16, SerialPort, hardware integration
+- `database` - SQLite, Sequelize, migrations, queries
+- `architecture` - Design patterns, structural decisions
+- `debug` - Error solutions, troubleshooting, workarounds
+- `workflow` - Process improvements, automation
+- `frontend` - React, Electron, UI components
+- `backend` - Node.js, APIs, services
+
+### Knowledge ID System
+
+**Format**: `KNOW-[CATEGORY]-[NUMBER]`
+- Example: `KNOW-DEVICE-001`, `KNOW-DATABASE-015`
+- Auto-increment per category
+- Easy reference and cross-linking
+
+### Auto-Label Creation
+
+**System Behavior**:
+```bash
+# When =kupdate device "CU12 lock-back solution" is used:
+# 1. Check if 'knowledge-device' label exists
+# 2. If not, create: gh label create knowledge-device --color "1d76db" --description "Device integration knowledge"
+# 3. Apply label to knowledge issue
+# 4. Auto-generate Knowledge ID: KNOW-DEVICE-001
+```
+
+**Knowledge Labels Created Automatically**:
+- `knowledge-device` - Device integration knowledge
+- `knowledge-database` - Database and persistence knowledge
+- `knowledge-architecture` - System design and patterns
+- `knowledge-debug` - Debugging and troubleshooting
+- `knowledge-workflow` - Development workflow improvements
+
+### Knowledge Search & Retrieval
+
+**Search Capabilities**:
+```bash
+=ksearch "CU12 lock-back"    # Full-text search across all knowledge
+=kcategory device           # Show all device-related knowledge
+=krecent                    # Last 5 knowledge entries
+=khub                       # Go to main Knowledge Hub issue
+```
+
+**Search Optimization**:
+- Knowledge entries include searchable tags
+- Problem statements use clear, technical language
+- Solutions include specific keywords and technologies
+- Cross-references link related knowledge
+
+### Knowledge Structure
+
+**Each Knowledge Entry Contains**:
+- **Problem Statement**: Clear description of what was solved
+- **Solution Implementation**: Step-by-step working solution
+- **AI Honest Feedback**: What worked, what didn't, lessons learned
+- **Things to Avoid**: Common pitfalls and their consequences
+- **Prerequisites**: What to check before starting
+- **AI Self-Improvement**: Insights for future problem-solving
+- **Links & References**: Connections to source issues/PRs/code
+- **Verification Status**: Testing and validation state
 
 ---
 
@@ -275,10 +367,11 @@ npm run lint             # Lint code (must 100% pass)
 
 ### Template-Guided Quality
 
-- **Context Issues**: Complete PLANNING READINESS CHECKLIST ✅
-- **Task Issues**: 100% build/lint/test requirements mandatory
+- **Context Issues**: Complete PLANNING READINESS CHECKLIST ✅ (Always GitHub Issues)
+- **Task Issues**: 100% build/lint/test requirements mandatory (Always GitHub Issues)
 - **Mode Execution**: Follow mode-specific behavior exactly
 - **Template Consistency**: All issues follow template structures
+- **File Policy**: NEVER create local .md files for issues - ALWAYS use GitHub Issues
 
 ---
 
@@ -288,6 +381,7 @@ npm run lint             # Lint code (must 100% pass)
 
 - `/docs/ISSUE-TEMP.md` - Context Issue Template for iterative discussions
 - `/docs/TASK-ISSUE-TEMP.md` - Atomic Task Template for implementation
+- `/docs/KNOWLEDGE-TEMP.md` - Knowledge Issue Template for structured learning
 
 ### Performance Metrics
 
