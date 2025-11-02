@@ -24,8 +24,8 @@
 ### 📋 MANDATORY WORKFLOW RULES
 
 - ✅ **ALWAYS** sync main branch before any implementation: `git checkout main && git pull origin main`
-- ✅ **ALWAYS** verify task issue exists: `[TASK-XXX-X]` before `=impl`
-- ✅ **ALWAYS** use feature branch naming: `feature/task-[number]-[description]`
+- ✅ **ALWAYS** verify task issue exists: `#[issue-number]` before `=impl`
+- ✅ **ALWAYS** use feature branch naming: `feature/task-[issue-number]-[description]`
 - ✅ **ALWAYS** ensure 100% build success before commit: `npm run build`
 - ✅ **ALWAYS** ensure 100% lint pass before commit: `npm run lint`
 - ✅ **ALWAYS** use template-guided workflow with proper context validation
@@ -39,13 +39,15 @@
 
 **Context Issue Template** - `/docs/ISSUE-TEMP.md`:
 
-- Used for: `=fcs > [topic-name]` or `=fcs > [ISSUE-XXX]`
+- Used for: `=fcs > [topic-name]` or `=fcs > [CONTEXT]`
+- **ALWAYS creates GitHub Issue** - Never creates local .md files
 - Creates living document for iterative discussion
 - Contains: DISCUSSION LOG, ACCUMULATED CONTEXT, PLANNING READINESS CHECKLIST
 
 **Task Issue Template** - `/docs/TASK-ISSUE-TEMP.md`:
 
 - Used for: `=plan > [task description]`
+- **ALWAYS creates GitHub Issue** - Never creates local .md files
 - Creates atomic tasks based on current mode (MANUAL/COPILOT)
 - Contains: EXECUTION MODE field, 100% validation requirements
 
@@ -70,39 +72,40 @@
 
 ```bash
 # Context Management
-=fcs > [topic-name]           # Create new Context Issue using /docs/ISSUE-TEMP.md
-=fcs > [ISSUE-XXX]            # Update existing Context Issue using /docs/ISSUE-TEMP.md
+=fcs > [topic-name]           # Create new Context GitHub Issue (NEVER .md file)
+=fcs > [CONTEXT]            # Update existing Context GitHub Issue (NEVER .md file)
 =fcs list                     # Show all active Context Issues
 
 # Task Management
-=plan > [task description]      # Create Task Issue using /docs/TASK-ISSUE-TEMP.md (assigned by current mode)
-=impl > [task-number]          # Implementation workflow (triggers based on current mode)
+=plan > [task description]      # Create Task GitHub Issue using /docs/TASK-ISSUE-TEMP.md (assigned by current mode) - NEVER .md file
+=impl > [issue-number]         # Implementation workflow for specific GitHub issue (triggers based on current mode)
+=impl > [issue-number] [msg]   # Implementation with additional context/clarification
 =pr > [feedback]               # Create Pull Request from pushed feature branch
 
 # Other Commands
-=rrr > [message]              # Create daily retrospective file and Issue
+=rrr > [message]              # Create daily retrospective GitHub Issue (NEVER .md file)
 ```
 
 ### Template-Driven Workflow Process
 
-1. **Phase 1**: `=fcs > [topic]` → Create initial context issue
-2. **Phase 2**: `=fcs > [ISSUE-XXX]` → Update context iteratively
+1. **Phase 1**: `=fcs > [topic]` → Create initial context **GitHub Issue** (NEVER .md file)
+2. **Phase 2**: `=fcs > [CONTEXT]` → Update context **GitHub Issue** iteratively
 3. **Phase 3**: Context reaches `[Ready for Planning]` status → Ready for planning
-4. **Phase 4**: `=plan > [task]` → Create atomic tasks
-5. **Phase 5**: `=impl > [task-number]` → Implement based on mode
+4. **Phase 4**: `=plan > [task]` → Create atomic **GitHub Issues** (NEVER .md files)
+5. **Phase 5**: `=impl > [issue-number]` → Implement specific GitHub issue based on mode
 
 ### Implementation Workflow (MANDATORY)
 
 **Pre-Implementation Checklist**:
 
 1. **Staging Sync**: `git checkout staging && git pull origin staging`
-2. **Task Verification**: Confirm Task Issue `[TASK-XXX-X]` exists and is linked to Context Issue
-3. **Context Status**: Verify Context Issue is `[Ready for Planning]` or `[Implementation Ready]`
+2. **Task Verification**: Confirm Task **GitHub Issue** `#[issue-number]` exists and is [TASK] type
+3. **Context Status**: Verify Context **GitHub Issue** is `[Ready for Planning]` or `[Implementation Ready]`
 4. **Environment Check**: `git status` - working directory must be clean
 
 **Implementation Steps**:
 
-1. **Create Feature Branch**: `git checkout -b feature/task-[number]-[description]`
+1. **Create Feature Branch**: `git checkout -b feature/task-[issue-number]-[description]`
 2. **Execute Implementation**: Follow task requirements, use TodoWrite for complex tasks
 3. **Debug with Enhanced VS Code Setup**:
    - Use "Debug Main Process (Launch)" for hardware communication debugging
@@ -116,7 +119,7 @@
    git add .
    git commit -m "feat: [feature description]
 
-   - Address TASK-XXX-X: [task title]
+   - Address #[issue-number]: [task title]
    - Build validation: 100% PASS
    - Linter validation: 100% PASS
 
@@ -124,7 +127,7 @@
    Co-Authored-By: Claude <noreply@anthropic.com>"
    ```
 
-6. **Push Branch**: `git push -u origin feature/task-[number]-[description]`
+6. **Push Branch**: `git push -u origin feature/task-[issue-number]-[description]`
 
 **Post-Implementation**:
 
@@ -275,10 +278,11 @@ npm run lint             # Lint code (must 100% pass)
 
 ### Template-Guided Quality
 
-- **Context Issues**: Complete PLANNING READINESS CHECKLIST ✅
-- **Task Issues**: 100% build/lint/test requirements mandatory
+- **Context Issues**: Complete PLANNING READINESS CHECKLIST ✅ (Always GitHub Issues)
+- **Task Issues**: 100% build/lint/test requirements mandatory (Always GitHub Issues)
 - **Mode Execution**: Follow mode-specific behavior exactly
 - **Template Consistency**: All issues follow template structures
+- **File Policy**: NEVER create local .md files for issues - ALWAYS use GitHub Issues
 
 ---
 
