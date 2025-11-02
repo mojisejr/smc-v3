@@ -4,6 +4,7 @@ import { createWindow } from "./helpers";
 
 // Import database and CU12 related modules
 import { sequelize } from "../db/sequelize";
+import "../db/model/license.model"; // Ensure license model is imported and synced
 import { CU12Controller } from "./cu12";
 
 // Import IPC handlers for various functionalities
@@ -45,6 +46,7 @@ import {
 } from "./setting/ipcMain/setSelectedPort";
 import { checkActivationKeyHandler } from "./license/ipcMain/check-activation-key";
 import { activateKeyHandler } from "./license/ipcMain/activate-key";
+import { registerAllLicenseHandlers } from "./ipc/license-handlers";
 import { IndicatorDevice } from "./indicator";
 /**
  * Indicates whether the application is running in production mode.
@@ -113,9 +115,12 @@ if (isProd) {
   // cu12.receive(); // Removed - now using handleIncomingData directly
   indicator.receive();
 
-  //Activation key check
+  //Activation key check (legacy handlers - maintained for compatibility)
   activateKeyHandler();
   checkActivationKeyHandler();
+
+  // Register new secure license system handlers
+  registerAllLicenseHandlers();
 
   // Register all IPC handlers for various functionalities
   // Settings related handlers
