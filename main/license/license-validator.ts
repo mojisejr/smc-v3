@@ -86,19 +86,28 @@ export class LicenseValidator {
 
   /**
    * Parse JWT license format from ESP32 deployment tool
-   * @param jwtKey JWT-like license token
+   * @param jwtKey JWT-like license token (supports 2-part ESP32 and 3-part standard JWTs)
    * @returns Parsed license data or null if invalid
    */
   parseJWTLicense(jwtKey: string): LicenseData | null {
     try {
-      // JWT format: base64url(payload).base64url(signature)
+      // Support both 2-part ESP32 tokens and 3-part standard JWTs
       const parts = jwtKey.split('.');
-      if (parts.length !== 3) {
-        throw new Error('Invalid JWT format');
+      if (parts.length < 2) {
+        throw new Error('Invalid JWT format - insufficient parts');
+      }
+
+      // Determine payload location based on token structure
+      let payload: string;
+      if (parts.length === 2) {
+        // ESP32 2-part format: payload.signature
+        payload = parts[0];
+      } else {
+        // Standard JWT format: header.payload.signature
+        payload = parts[1];
       }
 
       // Decode payload using base64url
-      const payload = parts[1];
       const base64Payload = payload.replace(/-/g, '+').replace(/_/g, '/');
 
       // Add padding if needed
