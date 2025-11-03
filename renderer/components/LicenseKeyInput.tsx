@@ -68,14 +68,22 @@ export default function LicenseKeyInput({
   // Parse JWT license format
   const parseJWTLicense = (key: string): ParsedLicense | null => {
     try {
-      // JWT format: base64url(payload).base64url(signature)
+      // Support both 2-part ESP32 tokens and 3-part standard JWTs
       const parts = key.split(".");
-      if (parts.length !== 3) {
+      if (parts.length < 2) {
         return null;
       }
 
-      // Decode payload using base64url
-      const payload = parts[1];
+      // Determine payload location based on token structure
+      let payload: string;
+      if (parts.length === 2) {
+        // ESP32 2-part format: payload.signature
+        payload = parts[0];
+      } else {
+        // Standard JWT format: header.payload.signature
+        payload = parts[1];
+      }
+
       const base64Payload = payload.replace(/-/g, '+').replace(/_/g, '/');
 
       // Add padding if needed
@@ -138,9 +146,9 @@ export default function LicenseKeyInput({
 
   const isValidJWTFormat = (key: string): boolean => {
     const parts = key.split(".");
-    return parts.length === 3 &&
-           parts[1].length > 0 && // Payload exists
-           /^[A-Za-z0-9_-]+$/.test(parts[1]); // Valid base64url characters
+    return parts.length >= 2 && // Accept 2-part or 3-part tokens
+           parts[0].length > 0 && // First part (payload for 2-part, header for 3-part) exists
+           /^[A-Za-z0-9_-]+$/.test(parts[0]); // Valid base64url characters
   };
 
   const isValidLicenseFormat = (key: string): boolean => {
