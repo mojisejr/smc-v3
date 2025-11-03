@@ -141,9 +141,9 @@ export function registerLicenseStatusHandler(): void {
 
       return {
         isActive: true,
-        expiresAt: license.expires_at,
-        createdAt: license.created_at,
-        updatedAt: license.updated_at,
+        expiresAt: license.getDataValue('expires_at'),
+        createdAt: license.getDataValue('created_at'),
+        updatedAt: license.getDataValue('updated_at'),
         message: "License is active"
       };
 
