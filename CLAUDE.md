@@ -90,7 +90,9 @@
 =pr > [feedback]               # Create Pull Request from pushed feature branch
 
 # Knowledge Management
-=kupdate [category] "[topic]"   # Create Knowledge GitHub Issue using /docs/KNOWLEDGE-TEMP.md (NEVER .md file)
+=kupdate [category] "[topic]"   # Create Knowledge GitHub Issue using /docs/KNOWLEDGE-TEMP.md (NEVER .md file) - PROMPTS for hub integration
+=klink [knowledge-issue-number] # Link knowledge entry to Knowledge Hub #102 (automatic section placement)
+=ksync                          # Synchronize Knowledge Hub #102 with all knowledge entries
 =ksearch "[query]"              # Search across all knowledge entries
 =khub                          # Go to main Knowledge Hub issue
 =krecent                       # Show last 5 knowledge updates
@@ -155,9 +157,16 @@
 ### Knowledge Workflow Integration
 
 **Knowledge Capture Points**:
-- **After Implementation**: When `=impl` completes successfully, use `=kupdate` to document learnings
-- **After Context Discussion**: When `=fcs` reaches key decisions, use `=kupdate` to capture insights
-- **After Chat Discoveries**: When breakthrough solutions are found, use `=kupdate` to preserve knowledge
+- **After Implementation**: When `=impl` completes successfully, use `=kupdate` to document learnings **(auto-prompts for hub linking)**
+- **After Context Discussion**: When `=fcs` reaches key decisions, use `=kupdate` to capture insights **(auto-prompts for hub linking)**
+- **After Chat Discoveries**: When breakthrough solutions are found, use `=kupdate` to preserve knowledge **(auto-prompts for hub linking)**
+
+**Enhanced Knowledge Workflow**:
+1. **Create**: `=kupdate [category] "[topic]"` → Creates knowledge issue
+2. **Prompt**: System asks "Link to Knowledge Hub #102? (y/n)"
+3. **Link**: If "y" → Automatically runs `=klink`
+4. **Sync**: Use `=ksync` to ensure hub is fully synchronized
+5. **Discover**: All knowledge accessible through `=khub` navigation
 
 ### Knowledge Categories
 
@@ -195,6 +204,54 @@
 - `knowledge-debug` - Debugging and troubleshooting
 - `knowledge-workflow` - Development workflow improvements
 
+### Enhanced Knowledge Hub Integration
+
+**New Automated Commands**:
+
+**`=klink [knowledge-issue-number]`**:
+- Automatically detects category from knowledge issue labels
+- Places knowledge link in appropriate Knowledge Hub section
+- Updates statistics counters
+- Maintains proper markdown formatting
+
+**`=ksync`**:
+- Scans all issues with `knowledge-*` labels
+- Synchronizes Knowledge Hub with all existing knowledge entries
+- Updates statistics and distribution
+- Fixes broken links and formatting
+- Ensures hub reflects current knowledge base state
+
+**Enhanced `=kupdate` Workflow**:
+1. Creates knowledge GitHub issue ✅
+2. **Automatically prompts**: "Link to Knowledge Hub #102? (y/n)"
+3. If "y": Runs `=klink` automatically ✨
+4. Maintains consistency across knowledge system
+
+**Command Implementation Details**:
+
+**`=klink [issue-number]` Implementation**:
+1. **Issue Analysis**: Extract title, labels, and description
+2. **Category Detection**: Parse `knowledge-[category]` label
+3. **Format Entry**: `**KNOW-[CATEGORY]-[NUMBER]**: [Title](issue-link) - Brief description`
+4. **Section Insert**: Add to appropriate "Recent Entries" section
+5. **Statistics Update**: Increment total and category counts
+6. **Timestamp Update**: Set "Last Updated" to current date
+
+**`=ksync` Implementation**:
+1. **Knowledge Discovery**: Scan all issues with `knowledge-*` labels
+2. **Category Processing**: Group by label type (device, database, etc.)
+3. **Entry Generation**: Create standardized format for each found issue
+4. **Hub Reconstruction**: Replace all category sections with complete lists
+5. **Statistics Calculation**: Recalculate all counts from scratch
+6. **Format Validation**: Ensure proper markdown structure and valid links
+
+**Hub Integration Benefits**:
+- ✅ **No more manual linking required**
+- ✅ **Automatic statistics updates**
+- ✅ **Consistent formatting maintained**
+- ✅ **Centralized knowledge discovery**
+- ✅ **Real-time hub synchronization**
+
 ### Knowledge Search & Retrieval
 
 **Search Capabilities**:
@@ -203,6 +260,8 @@
 =kcategory device           # Show all device-related knowledge
 =krecent                    # Last 5 knowledge entries
 =khub                       # Go to main Knowledge Hub issue
+=ksync                      # Synchronize hub with all knowledge entries
+=klink 116                  # Link knowledge issue #116 to hub
 ```
 
 **Search Optimization**:
@@ -210,6 +269,7 @@
 - Problem statements use clear, technical language
 - Solutions include specific keywords and technologies
 - Cross-references link related knowledge
+- Hub ensures all knowledge is discoverable from central location
 
 ### Knowledge Structure
 
