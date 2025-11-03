@@ -73,8 +73,8 @@ export class AppSettingManager implements SettingManager {
       const validationResult = await licenseValidator.validateLicense();
 
       return {
-        isActive: dbLicense.is_active,
-        expiresAt: dbLicense.expires_at,
+        isActive: dbLicense.getDataValue('is_active'),
+        expiresAt: dbLicense.getDataValue('expires_at'),
         hasValidLicense: validationResult.isValid,
         message: validationResult.isValid ?
           "License is valid and active" :
@@ -91,35 +91,20 @@ export class AppSettingManager implements SettingManager {
 
   /**
    * Sync settings with license system
-   * This method ensures consistency between settings and license system
+   * This method implements force reset migration to new license system
    */
   async syncWithLicenseSystem(): Promise<void> {
     try {
       // Get current settings
       const settings = await this.getSetting();
 
-      // Get license information
-      const licenseStatus = await this.getLicenseStatus();
-
-      // If there's a legacy activated_key in settings but no modern license record,
-      // migrate it (if it exists)
-      if (settings.activated_key && !licenseStatus.isActive) {
-        console.log("Detected legacy license key, attempting migration...");
-
-        // Try to activate using the legacy key
-        try {
-          const result = await licenseValidator.activateLicense(settings.activated_key);
-          if (result.success) {
-            console.log("Legacy license key migrated successfully");
-          } else {
-            console.warn("Legacy license key migration failed:", result.message);
-          }
-        } catch (error: any) {
-          console.error("License migration error:", error.message);
-        }
+      // Force reset approach: clear legacy activated_key if it exists
+      if (settings.activated_key) {
+        console.log("Clearing legacy activated_key for force reset migration...");
+        await this.clearLegacyLicense();
       }
 
-      console.log("License system sync completed");
+      console.log("License system sync completed - using new PEM license system exclusively");
 
     } catch (error: any) {
       console.error("License system sync failed:", error);
@@ -144,22 +129,24 @@ export class AppSettingManager implements SettingManager {
   /**
    * Initialize and validate license system on startup
    * This should be called during application startup
+   * Force reset approach: uses new PEM license system exclusively
    */
   async initializeLicenseSystem(): Promise<boolean> {
     try {
-      console.log("Initializing license system...");
+      console.log("Initializing license system (PEM + AES-256-GCM)...");
 
-      // Sync with license system
+      // Force reset: clear legacy data and use new system exclusively
       await this.syncWithLicenseSystem();
 
-      // Validate license
+      // Validate license using new PEM system
       const validation = await licenseValidator.validateLicense();
 
       if (validation.isValid) {
-        console.log("License system initialized successfully - Valid license");
+        console.log("License system initialized successfully - Valid PEM license");
         return true;
       } else {
-        console.warn("License system initialized but no valid license:", validation.error);
+        console.warn("License system initialized but no valid PEM license:", validation.error);
+        console.log("Please activate a new PEM license key to continue using the system");
         return false;
       }
 

@@ -2,7 +2,7 @@ import { Model, DataTypes } from "sequelize";
 import { sequelize } from "../sequelize";
 import { ILicense } from "../../main/interfaces/license";
 
-export class License extends Model<ILicense> implements ILicense {}
+export class License extends Model {}
 
 License.init(
   {
