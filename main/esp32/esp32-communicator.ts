@@ -1,4 +1,4 @@
-import axios, { AxiosResponse, AxiosRequestConfig } from "axios";
+import * as http from "http";
 
 export interface ESP32DeviceInfo {
   mac_address: string;
@@ -46,32 +46,13 @@ export class ESP32Communicator {
           `ESP32: Attempting to get device info (attempt ${attempt}/${maxRetries})`
         );
 
-        // Option 1: Network-aware timeout (longer for local network)
+        // Simple fix: Direct HTTP connection to bypass DNS resolution issues
         const networkAwareTimeout = attempt === 1 ? timeout : timeout * 1.5;
 
-        // Option 2: DNS bypass and connection optimization for local IP
-        const axiosConfig: AxiosRequestConfig = {
-          timeout: networkAwareTimeout,
-          headers: {
-            "User-Agent": "SMC-License-Validator/1.0",
-            Accept: "application/json",
-          },
-          // Force IPv4 and optimize for local network
-          family: 4,
-          // Enable keep-alive for better connection reuse
-          keepAlive: true,
-          keepAliveMsecs: 1000,
-          // Disable DNS cache bypass for local IPs
-          validateStatus: (status) => status < 500, // Don't throw on 4xx errors
-        };
-
-        const response: AxiosResponse<any> = await axios.get(
-          `${this.BASE_URL}/info`,
-          axiosConfig
-        );
+        const response = await this.makeHttpRequest(this.ESP32_IP, '/info', networkAwareTimeout);
 
         // Validate response structure
-        if (!response.data || typeof response.data !== "object") {
+        if (!response || !response.data || typeof response.data !== "object") {
           throw new Error("Invalid response format from ESP32");
         }
 
@@ -215,6 +196,65 @@ export class ESP32Communicator {
       free_heap: 250000,
       uptime: 3600,
     };
+  }
+
+  /**
+   * Simple HTTP request helper to bypass DNS resolution issues on local networks
+   * @param ip ESP32 IP address
+   * @param path API endpoint path
+   * @param timeout Request timeout in milliseconds
+   * @returns Promise with response data and status
+   */
+  private static async makeHttpRequest(
+    ip: string,
+    path: string,
+    timeout: number = 10000
+  ): Promise<{ data: any; status: number }> {
+    return new Promise((resolve, reject) => {
+      const options = {
+        hostname: ip,
+        port: 80,
+        path: path,
+        method: "GET",
+        timeout: timeout,
+        headers: {
+          "User-Agent": "SMC-License-Validator/1.0",
+          Accept: "application/json",
+        },
+      };
+
+      const req = http.request(options, (res) => {
+        let data = "";
+
+        res.on("data", (chunk) => {
+          data += chunk;
+        });
+
+        res.on("end", () => {
+          try {
+            const jsonData = JSON.parse(data);
+            resolve({
+              data: jsonData,
+              status: res.statusCode || 200,
+            });
+          } catch (error) {
+            reject(new Error(`Invalid JSON response: ${error.message}`));
+          }
+        });
+      });
+
+      req.on("error", (error) => {
+        reject(error);
+      });
+
+      req.on("timeout", () => {
+        req.destroy();
+        reject(new Error(`HTTP request timeout after ${timeout}ms`));
+      });
+
+      req.setTimeout(timeout);
+      req.end();
+    });
   }
 
   /**
