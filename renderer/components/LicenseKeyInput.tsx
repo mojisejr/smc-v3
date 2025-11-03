@@ -35,15 +35,12 @@ export default function LicenseKeyInput({
   // Parse PEM license format
   const parsePEMLicense = (key: string): ParsedLicense | null => {
     try {
-      // Check if it's a PEM format
-      if (!key.includes("-----BEGIN LICENSE-----") || !key.includes("-----END LICENSE-----")) {
-        return null;
-      }
-
-      // Extract base64 content
+      // Handle both old and new PEM headers
       const base64Content = key
         .replace("-----BEGIN LICENSE-----", "")
         .replace("-----END LICENSE-----", "")
+        .replace("-----BEGIN SMC LICENSE-----", "")
+        .replace("-----END SMC LICENSE-----", "")
         .trim();
 
       // Decode base64
@@ -63,7 +60,50 @@ export default function LicenseKeyInput({
         isActive: !licenseData.expired && new Date(licenseData.expires_at) > new Date(),
       };
     } catch (error) {
-      console.error("License parsing error:", error);
+      console.error("PEM license parsing error:", error);
+      return null;
+    }
+  };
+
+  // Parse JWT license format
+  const parseJWTLicense = (key: string): ParsedLicense | null => {
+    try {
+      // Support both 2-part ESP32 tokens and 3-part standard JWTs
+      const parts = key.split(".");
+      if (parts.length < 2) {
+        return null;
+      }
+
+      // Determine payload location based on token structure
+      let payload: string;
+      if (parts.length === 2) {
+        // ESP32 2-part format: payload.signature
+        payload = parts[0];
+      } else {
+        // Standard JWT format: header.payload.signature
+        payload = parts[1];
+      }
+
+      const base64Payload = payload.replace(/-/g, '+').replace(/_/g, '/');
+
+      // Add padding if needed
+      const paddedPayload = base64Payload + '='.repeat((4 - base64Payload.length % 4) % 4);
+
+      const decodedContent = atob(paddedPayload);
+      const licenseData = JSON.parse(decodedContent);
+
+      // Map ESP32 license fields to frontend interface
+      const macAddress = licenseData.mac || "";
+
+      return {
+        organization: licenseData.customer || "Unknown",
+        expiresAt: licenseData.expiry || "Unknown",
+        macAddress: macAddress.toUpperCase(),
+        issuer: "ESP32 Deployment Tool",
+        isActive: new Date(licenseData.expiry) > new Date(),
+      };
+    } catch (error) {
+      console.error("JWT license parsing error:", error);
       return null;
     }
   };
@@ -104,7 +144,18 @@ export default function LicenseKeyInput({
            key.split("\n").length >= 3;
   };
 
-  const keyIsValid = isValid && watchedKey && isValidPEMFormat(watchedKey);
+  const isValidJWTFormat = (key: string): boolean => {
+    const parts = key.split(".");
+    return parts.length >= 2 && // Accept 2-part or 3-part tokens
+           parts[0].length > 0 && // First part (payload for 2-part, header for 3-part) exists
+           /^[A-Za-z0-9_-]+$/.test(parts[0]); // Valid base64url characters
+  };
+
+  const isValidLicenseFormat = (key: string): boolean => {
+    return isValidPEMFormat(key) || isValidJWTFormat(key);
+  };
+
+  const keyIsValid = isValid && watchedKey && isValidLicenseFormat(watchedKey);
 
   return (
     <div className="card bg-base-100 shadow-xl">
@@ -119,7 +170,7 @@ export default function LicenseKeyInput({
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="form-control">
             <label className="label">
-              <span className="label-text font-semibold">License Key (PEM Format)</span>
+              <span className="label-text font-semibold">License Key (PEM หรือ JWT Format)</span>
               <span className="label-text-alt text-error">* จำเป็น</span>
             </label>
             <textarea
@@ -127,16 +178,16 @@ export default function LicenseKeyInput({
                 required: "กรุณาใส่ License Key",
                 validate: (value) => {
                   if (!value.trim()) return "กรุณาใส่ License Key";
-                  if (!isValidPEMFormat(value)) {
-                    return "รูปแบบ License ไม่ถูกต้อง ต้องเป็น PEM format";
+                  if (!isValidLicenseFormat(value)) {
+                    return "รูปแบบ License ไม่ถูกต้อง ต้องเป็น PEM format (-----BEGIN LICENSE-----) หรือ JWT format จาก ESP32 deployment tool";
                   }
                   return true;
                 }
               })}
               className={`textarea textarea-bordered h-40 font-mono text-sm ${errors.key ? "textarea-error" : ""} ${
-                watchedKey && isValidPEMFormat(watchedKey) ? "textarea-success" : ""
+                watchedKey && isValidLicenseFormat(watchedKey) ? "textarea-success" : ""
               }`}
-              placeholder="-----BEGIN LICENSE-----&#10;[Base64 encoded license data]&#10;-----END LICENSE-----"
+              placeholder="PEM Format:&#10;-----BEGIN LICENSE-----&#10;[Base64 encoded license data]&#10;-----END LICENSE-----&#10;&#10;หรือ&#10;&#10;JWT Format:&#10;eyJtYWMiOiI...[JWT token from ESP32 deployment tool]"
               onChange={handleKeyChange}
               onPaste={handlePaste}
               disabled={isSubmitting}
@@ -148,7 +199,7 @@ export default function LicenseKeyInput({
             )}
             <label className="label">
               <span className="label-text-alt">
-                วาง License Key ที่ได้รับจากบริษัท ในรูปแบบ PEM (-----BEGIN LICENSE----- ถึง -----END LICENSE-----)
+                วาง License Key ที่ได้รับจากบริษัท ในรูปแบบ PEM (-----BEGIN LICENSE----- ถึง -----END LICENSE-----) หรือ JWT format จาก ESP32 deployment tool
               </span>
             </label>
           </div>
