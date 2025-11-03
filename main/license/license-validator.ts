@@ -269,7 +269,7 @@ export class LicenseValidator {
         return null;
       }
 
-      return this.decryptLicenseKey(license.activation_key);
+      return this.decryptLicenseKey(license.getDataValue('activation_key'));
     } catch (error: any) {
       console.error('Failed to get active license:', error);
       return null;

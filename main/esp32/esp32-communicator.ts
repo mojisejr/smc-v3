@@ -42,7 +42,7 @@ export class ESP32Communicator {
       try {
         console.log(`ESP32: Attempting to get device info (attempt ${attempt}/${maxRetries})`);
 
-        const response: AxiosResponse<ESP32DeviceInfo> = await axios.get(
+        const response: AxiosResponse<any> = await axios.get(
           `${this.BASE_URL}/info`,
           {
             timeout: timeout,
@@ -58,21 +58,55 @@ export class ESP32Communicator {
           throw new Error('Invalid response format from ESP32');
         }
 
-        // Validate required fields
+        // Handle both flat and nested response structures
+        let deviceInfo: any;
+
+        // Check if response has nested structure (common ESP32 API pattern)
+        if (response.data.data && typeof response.data.data === 'object') {
+          // Nested structure: { data: { mac_address: "...", ip_address: "...", ... } }
+          deviceInfo = response.data.data;
+          console.log('ESP32: Detected nested response structure, extracting data field');
+        } else if (response.data.info && typeof response.data.info === 'object') {
+          // Alternative nested structure: { info: { mac_address: "...", ip_address: "...", ... } }
+          deviceInfo = response.data.info;
+          console.log('ESP32: Detected nested response structure, extracting info field');
+        } else if (response.data.status && typeof response.data.status === 'object') {
+          // Alternative nested structure: { status: { mac_address: "...", ip_address: "...", ... } }
+          deviceInfo = response.data.status;
+          console.log('ESP32: Detected nested response structure, extracting status field');
+        } else {
+          // Flat structure: { mac_address: "...", ip_address: "...", ... }
+          deviceInfo = response.data;
+          console.log('ESP32: Using flat response structure');
+        }
+
+        // Validate required fields in the extracted device info
         const requiredFields = ['mac_address', 'ip_address'];
         for (const field of requiredFields) {
-          if (!response.data[field]) {
+          if (!deviceInfo[field]) {
             throw new Error(`Missing required field: ${field}`);
           }
         }
 
         // Validate MAC address format
-        if (!this.isValidMacAddress(response.data.mac_address)) {
-          throw new Error(`Invalid MAC address format: ${response.data.mac_address}`);
+        if (!this.isValidMacAddress(deviceInfo.mac_address)) {
+          throw new Error(`Invalid MAC address format: ${deviceInfo.mac_address}`);
         }
 
-        console.log(`ESP32: Successfully retrieved device info. MAC: ${response.data.mac_address}`);
-        return response.data;
+        // Ensure the returned object matches ESP32DeviceInfo interface
+        const normalizedDeviceInfo: ESP32DeviceInfo = {
+          mac_address: deviceInfo.mac_address,
+          ip_address: deviceInfo.ip_address,
+          hostname: deviceInfo.hostname || 'esp32',
+          firmware_version: deviceInfo.firmware_version || deviceInfo.version || 'unknown',
+          chip_id: deviceInfo.chip_id || deviceInfo.chipId || 'unknown',
+          flash_id: deviceInfo.flash_id || deviceInfo.flashId || 'unknown',
+          free_heap: deviceInfo.free_heap || deviceInfo.freeHeap || 0,
+          uptime: deviceInfo.uptime || 0
+        };
+
+        console.log(`ESP32: Successfully retrieved device info. MAC: ${normalizedDeviceInfo.mac_address}`);
+        return normalizedDeviceInfo;
 
       } catch (error: any) {
         lastError = error;
