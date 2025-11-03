@@ -183,16 +183,27 @@ export default function ActivatePage() {
 
   const parseJWTLicense = (key: string): ParsedLicense => {
     try {
-      // JWT format: base64url(payload).base64url(signature)
+      // Support both 2-part ESP32 tokens and 3-part standard JWTs
       const parts = key.split(".");
-      if (parts.length !== 3) {
+      if (parts.length < 2) {
         throw new Error("Invalid JWT format");
       }
 
+      // Determine payload location based on token structure
+      let payload: string;
+      if (parts.length === 2) {
+        // ESP32 2-part format: payload.signature
+        payload = parts[0];
+      } else {
+        // Standard JWT format: header.payload.signature
+        payload = parts[1];
+      }
+
       // Decode payload using base64url
-      const payload = parts[1];
       const base64Payload = payload.replace(/-/g, '+').replace(/_/g, '/');
-      const decodedContent = atob(base64Payload);
+      // Add padding if needed
+      const paddedPayload = base64Payload + '='.repeat((4 - base64Payload.length % 4) % 4);
+      const decodedContent = atob(paddedPayload);
       const licenseData = JSON.parse(decodedContent);
 
       // Map ESP32 license fields to frontend interface
