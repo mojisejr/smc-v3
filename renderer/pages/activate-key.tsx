@@ -133,10 +133,35 @@ export default function ActivatePage() {
 
   const parseLicenseKey = (key: string): ParsedLicense => {
     try {
-      // Parse PEM format
+      // Try PEM format first (existing system)
+      if (key.includes("BEGIN LICENSE") || key.includes("BEGIN SMC LICENSE")) {
+        return parsePEMLicense(key);
+      }
+
+      // Try JWT format from ESP32 deployment tool
+      if (key.includes(".") && key.split(".").length === 3) {
+        return parseJWTLicense(key);
+      }
+
+      // If no clear format indicator, try both
+      try {
+        return parsePEMLicense(key);
+      } catch {
+        return parseJWTLicense(key);
+      }
+    } catch (error) {
+      throw new Error("Invalid license format. Expected PEM format (-----BEGIN SMC LICENSE-----) or JWT format from ESP32 deployment tool");
+    }
+  };
+
+  const parsePEMLicense = (key: string): ParsedLicense => {
+    try {
+      // Handle both old and new PEM headers
       const base64Content = key
         .replace("-----BEGIN LICENSE-----", "")
         .replace("-----END LICENSE-----", "")
+        .replace("-----BEGIN SMC LICENSE-----", "")
+        .replace("-----END SMC LICENSE-----", "")
         .trim();
 
       const decodedContent = atob(base64Content);
@@ -146,13 +171,42 @@ export default function ActivatePage() {
 
       return {
         organization: licenseData.organization || licenseData.org || "Unknown",
-        expiresAt: licenseData.expires_at || licenseData.expiresAt || "Unknown",
+        expiresAt: licenseData.expires_at || licenseData.expiry || licenseData.expiresAt || "Unknown",
         macAddress: macAddress.toUpperCase(),
         issuer: licenseData.issuer || licenseData.issued_by || "Unknown",
-        isActive: !licenseData.expired && new Date(licenseData.expires_at) > new Date(),
+        isActive: !licenseData.expired && new Date(licenseData.expires_at || licenseData.expiry) > new Date(),
       };
     } catch (error) {
-      throw new Error("Invalid license format");
+      throw new Error("Invalid PEM license format");
+    }
+  };
+
+  const parseJWTLicense = (key: string): ParsedLicense => {
+    try {
+      // JWT format: base64url(payload).base64url(signature)
+      const parts = key.split(".");
+      if (parts.length !== 3) {
+        throw new Error("Invalid JWT format");
+      }
+
+      // Decode payload using base64url
+      const payload = parts[1];
+      const base64Payload = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const decodedContent = atob(base64Payload);
+      const licenseData = JSON.parse(decodedContent);
+
+      // Map ESP32 license fields to frontend interface
+      const macAddress = licenseData.mac || "";
+
+      return {
+        organization: licenseData.customer || "Unknown",
+        expiresAt: licenseData.expiry || "Unknown",
+        macAddress: macAddress.toUpperCase(),
+        issuer: "ESP32 Deployment Tool",
+        isActive: new Date(licenseData.expiry) > new Date(),
+      };
+    } catch (error) {
+      throw new Error("Invalid JWT license format");
     }
   };
 

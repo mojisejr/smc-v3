@@ -85,6 +85,50 @@ export class LicenseValidator {
   }
 
   /**
+   * Parse JWT license format from ESP32 deployment tool
+   * @param jwtKey JWT-like license token
+   * @returns Parsed license data or null if invalid
+   */
+  parseJWTLicense(jwtKey: string): LicenseData | null {
+    try {
+      // JWT format: base64url(payload).base64url(signature)
+      const parts = jwtKey.split('.');
+      if (parts.length !== 3) {
+        throw new Error('Invalid JWT format');
+      }
+
+      // Decode payload using base64url
+      const payload = parts[1];
+      const base64Payload = payload.replace(/-/g, '+').replace(/_/g, '/');
+
+      // Add padding if needed
+      const paddedPayload = base64Payload + '='.repeat((4 - base64Payload.length % 4) % 4);
+
+      const decodedContent = Buffer.from(paddedPayload, 'base64').toString();
+      const licenseData: any = JSON.parse(decodedContent);
+
+      // Map ESP32 license fields to main app interface
+      const mappedData: LicenseData = {
+        customerName: licenseData.customer || 'Unknown',
+        organization: licenseData.customer || 'Unknown',
+        mac_address: licenseData.mac || '',
+        expiry: licenseData.expiry || '',
+        issued_at: licenseData.issuedAt || new Date().toISOString(),
+        features: []
+      };
+
+      // Validate required fields
+      this.validateLicenseData(mappedData);
+
+      return mappedData;
+
+    } catch (error: any) {
+      console.error('JWT license parsing failed:', error.message);
+      return null;
+    }
+  }
+
+  /**
    * Validate license against current ESP32 hardware
    * @param pemKey PEM formatted license key
    * @returns Promise<LicenseValidationResult> Validation result with details
@@ -109,12 +153,28 @@ export class LicenseValidator {
         };
       }
 
-      // Parse license
-      const licenseData = this.parsePEMLicense(licenseKey);
+      // Parse license - try both formats
+      let licenseData: LicenseData | null = null;
+      let formatUsed: 'PEM-AES' | 'JWT' | null = null;
+
+      // Try PEM format first (existing system)
+      licenseData = this.parsePEMLicense(licenseKey);
+      if (licenseData) {
+        formatUsed = 'PEM-AES';
+        console.log('License: Validated using PEM-AES format');
+      } else {
+        // Try JWT format from ESP32 deployment tool
+        licenseData = this.parseJWTLicense(licenseKey);
+        if (licenseData) {
+          formatUsed = 'JWT';
+          console.log('License: Validated using JWT format from ESP32 deployment tool');
+        }
+      }
+
       if (!licenseData) {
         return {
           isValid: false,
-          error: 'Invalid license format or corrupted license data'
+          error: 'Invalid license format. Expected PEM format (-----BEGIN SMC LICENSE-----) or JWT format from ESP32 deployment tool'
         };
       }
 
@@ -156,7 +216,8 @@ export class LicenseValidator {
       return {
         isValid: true,
         licenseData,
-        deviceInfo
+        deviceInfo,
+        warnings: formatUsed ? [`License validated using ${formatUsed} format`] : undefined
       };
 
     } catch (error: any) {
@@ -168,18 +229,34 @@ export class LicenseValidator {
   }
 
   /**
-   * Activate a license key
-   * @param pemKey PEM formatted license key
+   * Activate a license key (supports both PEM-AES and JWT formats)
+   * @param licenseKey License key in PEM or JWT format
    * @returns Promise<LicenseActivationResult> Activation result
    */
-  async activateLicense(pemKey: string): Promise<LicenseActivationResult> {
+  async activateLicense(licenseKey: string): Promise<LicenseActivationResult> {
     try {
-      // Parse and validate license format
-      const licenseData = this.parsePEMLicense(pemKey);
+      // Parse license - try both formats
+      let licenseData: LicenseData | null = null;
+      let formatUsed: 'PEM-AES' | 'JWT' | null = null;
+
+      // Try PEM format first (existing system)
+      licenseData = this.parsePEMLicense(licenseKey);
+      if (licenseData) {
+        formatUsed = 'PEM-AES';
+        console.log('License activation: Using PEM-AES format');
+      } else {
+        // Try JWT format from ESP32 deployment tool
+        licenseData = this.parseJWTLicense(licenseKey);
+        if (licenseData) {
+          formatUsed = 'JWT';
+          console.log('License activation: Using JWT format from ESP32 deployment tool');
+        }
+      }
+
       if (!licenseData) {
         return {
           success: false,
-          message: 'Invalid license format or corrupted license data'
+          message: 'Invalid license format. Expected PEM format (-----BEGIN SMC LICENSE-----) or JWT format from ESP32 deployment tool'
         };
       }
 
@@ -212,7 +289,7 @@ export class LicenseValidator {
       }
 
       // Encrypt and store license
-      const encryptedKey = this.encryptLicenseKey(pemKey);
+      const encryptedKey = this.encryptLicenseKey(licenseKey);
 
       await License.create({
         activation_key: encryptedKey,
@@ -220,11 +297,11 @@ export class LicenseValidator {
         is_active: true
       });
 
-      console.log('License activated successfully for MAC:', licenseData.mac_address);
+      console.log(`License activated successfully using ${formatUsed} format for MAC:`, licenseData.mac_address);
 
       return {
         success: true,
-        message: 'License activated successfully',
+        message: `License activated successfully using ${formatUsed} format`,
         licenseData
       };
 
