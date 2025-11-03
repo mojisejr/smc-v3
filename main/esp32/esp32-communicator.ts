@@ -185,7 +185,16 @@ export class ESP32Communicator {
         let deviceInfo: any;
 
         // Check if response has nested structure (common ESP32 API pattern)
-        if (response.data.data && typeof response.data.data === "object") {
+        if (response.data.device && typeof response.data.device === "object") {
+          // ESP32 template structure: { device: { mac_address: "...", ap_ip: "...", ... }, customer: {...} }
+          deviceInfo = response.data.device;
+          // Map ESP32 template fields to expected interface fields
+          deviceInfo.ip_address = response.data.device.ap_ip;
+          deviceInfo.hostname = "esp32";
+          console.log(
+            "ESP32: Detected device nested response structure, extracting device field"
+          );
+        } else if (response.data.data && typeof response.data.data === "object") {
           // Nested structure: { data: { mac_address: "...", ip_address: "...", ... } }
           deviceInfo = response.data.data;
           console.log(
@@ -448,7 +457,7 @@ export class ESP32Communicator {
           });
         });
 
-        socket.on('error', (socketError) => {
+        socket.on('error', (socketError: any) => {
           console.error(`[ESP32-DEBUG] ${requestId} Socket error`, {
             error: socketError.message,
             errorCode: socketError.code,
@@ -457,7 +466,7 @@ export class ESP32Communicator {
         });
       });
 
-      req.on("error", (error) => {
+      req.on("error", (error: any) => {
         const errorTime = Date.now() - startTime;
         console.error(`[ESP32-DEBUG] ${requestId} Request error`, {
           error: error.message,
