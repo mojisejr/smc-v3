@@ -5,12 +5,14 @@ interface EmptySlotProps {
   isActive: boolean;
   temp: number;
   humid: number;
+  isValid: boolean;
 }
 export const EmptySlot = ({
   slotNo,
   isActive,
   temp = 0,
   humid = 0,
+  isValid,
 }: EmptySlotProps) => {
   return (
     <div
@@ -32,6 +34,11 @@ export const EmptySlot = ({
           </div>
         ) : (
           <div></div>
+        )}
+        {isActive && !isValid && (
+          <div className="absolute left-1/2 -bottom-6 w-full -translate-x-1/2 text-center text-xs text-warning">
+            ⚠️ ค่าจากเซนเซอร์อยู่นอกช่วงที่กำหนด
+          </div>
         )}
         <div className="text-[#615858] text-[40px] font-bold">{slotNo}</div>
       </div>

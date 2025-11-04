@@ -3,6 +3,7 @@ import type { AppProps } from "next/app";
 import { AppProvider } from "../contexts/appContext";
 import { DispensingProvider } from "../contexts/dispensingContext";
 import { ErrorProvider } from "../contexts/errorContext";
+import { SensorProvider } from "../contexts/sensorContext";
 import "../styles/globals.css";
 
 function MyApp({ Component, pageProps }: AppProps) {
@@ -10,7 +11,9 @@ function MyApp({ Component, pageProps }: AppProps) {
     <ErrorProvider>
       <AppProvider>
         <DispensingProvider>
-          <Component {...pageProps} />
+          <SensorProvider>
+            <Component {...pageProps} />
+          </SensorProvider>
         </DispensingProvider>
       </AppProvider>
     </ErrorProvider>

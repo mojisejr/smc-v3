@@ -16,7 +16,7 @@ import { useDispense } from "../hooks/useDispense";
 import { useUnlock } from "../hooks/useUnlock";
 import Navbar from "../components/Shared/Navbar";
 import DeActivate from "../components/Dialogs/Deactivate";
-import { useIndicator } from "../hooks/useIndicator";
+import { useSensorContext } from "../contexts/sensorContext";
 
 const mockSlots = [
   {
@@ -145,7 +145,7 @@ function Home() {
   const { slots } = useKuStates();
   const { unlocking } = useUnlock();
   const { dispensing } = useDispense();
-  const { indicator } = useIndicator();
+  const { sensorData, error: sensorError } = useSensorContext();
   const [closeClearOrCon, setCloseClearOrCon] = useState<boolean>(false);
   const [closeLockWait, setCloseLockWait] = useState<boolean>(false);
   const [openDeactivate, setOpenDeactivate] = useState<boolean>(false);
@@ -184,6 +184,11 @@ function Home() {
               alt="logo"
             />
             <Navbar active={1} />
+            {sensorError && (
+              <div className="alert alert-warning mt-4 text-sm">
+                <span>{sensorError}</span>
+              </div>
+            )}
             {/* <div className="w-full px-4 flex  flex-col gap-2 justify-start items-center">
               <Indicators />
             </div> */}
@@ -214,7 +219,7 @@ function Home() {
                           <Slot
                             key={index}
                             slotData={s}
-                            indicator={indicator}
+                            sensorData={sensorData}
                           />
                         ))}
                     </ul>

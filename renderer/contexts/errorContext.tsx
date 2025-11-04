@@ -46,6 +46,14 @@ export const ErrorProvider = ({ children }: { children: React.ReactNode }) => {
       toast.error(payload.message, { autoClose: false });
     });
 
+    ipcRenderer.on("indicator-error", (event, payload) => {
+      toast.error(payload.message ?? "Indicator device error occurred");
+    });
+
+    ipcRenderer.on("esp32-sensor-error", (event, payload) => {
+      toast.error(payload.message ?? "ESP32 sensor error occurred");
+    });
+
     return () => {
       ipcRenderer.removeAllListeners("unlock-error");
       ipcRenderer.removeAllListeners("dispense-error");
@@ -56,6 +64,8 @@ export const ErrorProvider = ({ children }: { children: React.ReactNode }) => {
       ipcRenderer.removeAllListeners("deactivate-admin-error");
       ipcRenderer.removeAllListeners("reactivate-admin-error");
       ipcRenderer.removeAllListeners("init-failed-on-connection-error");
+      ipcRenderer.removeAllListeners("indicator-error");
+      ipcRenderer.removeAllListeners("esp32-sensor-error");
     };
   }, []);
 
