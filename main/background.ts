@@ -48,6 +48,8 @@ import { checkActivationKeyHandler } from "./license/ipcMain/check-activation-ke
 import { activateKeyHandler } from "./license/ipcMain/activate-key";
 import { registerAllLicenseHandlers } from "./ipc/license-handlers";
 import { IndicatorDevice } from "./indicator";
+import { esp32Communicator } from "./esp32/esp32-communicator";
+import { SensorPoller } from "./services/sensorPoller";
 /**
  * Indicates whether the application is running in production mode.
  *
@@ -56,6 +58,7 @@ import { IndicatorDevice } from "./indicator";
  */
 const isProd: boolean = process.env.NODE_ENV === "production";
 let mainWindow: BrowserWindow;
+let sensorPoller: SensorPoller | null = null;
 
 // Configure electron-serve for production mode
 if (isProd) {
@@ -115,6 +118,9 @@ if (isProd) {
   // cu12.receive(); // Removed - now using handleIncomingData directly
   indicator.receive();
 
+  sensorPoller = new SensorPoller(esp32Communicator, mainWindow);
+  sensorPoller.start();
+
   //Activation key check (legacy handlers - maintained for compatibility)
   activateKeyHandler();
   checkActivationKeyHandler();
@@ -172,5 +178,6 @@ if (isProd) {
 
 // Quit application when all windows are closed
 app.on("window-all-closed", () => {
+  sensorPoller?.stop();
   app.quit();
 });

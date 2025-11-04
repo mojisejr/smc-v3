@@ -1,28 +1,59 @@
-import { ipcRenderer } from "electron";
+import { ipcRenderer, IpcRendererEvent } from "electron";
 import { useEffect, useState } from "react";
 
+type IndicatorPayload = {
+  message: string | null;
+  success: boolean;
+  data: {
+    Temp1: number;
+    Temp2: number;
+    Humidity1: number;
+    Humidity2: number;
+    Battery: number;
+  } | null;
+};
+
 export const useIndicator = () => {
-  const [loading, setloading] = useState<boolean>(false);
-  const [indicator, setIndicator] = useState<{
-    message: string;
-    success: boolean;
-    data: {
-      Temp1: number;
-      Temp2: number;
-      Huminity1: number;
-      Huminity2: number;
-      Battery: number;
-    } | null;
-  }>();
+  const [loading, setLoading] = useState<boolean>(false);
+  const [indicator, setIndicator] = useState<IndicatorPayload | null>(null);
 
   useEffect(() => {
-    ipcRenderer.on("retrive-indicator", async (event, payload) => {
-      if (!payload) {
-        setloading(true);
+    const handleIndicator = (
+      _event: IpcRendererEvent,
+      payload: IndicatorPayload | undefined
+    ) => {
+      if (!payload || typeof payload !== "object") {
+        console.warn("[useIndicator] Received invalid payload", payload);
+        setIndicator({
+          message: "Invalid indicator payload",
+          success: false,
+          data: null,
+        });
+        setLoading(false);
+        return;
       }
+
+      if (!payload.data) {
+        console.warn("[useIndicator] Indicator payload missing data", payload);
+        setIndicator({
+          message: payload.message ?? "Indicator data unavailable",
+          success: false,
+          data: null,
+        });
+        setLoading(false);
+        return;
+      }
+
       setIndicator(payload);
-      setloading(false);
-    });
+      setLoading(false);
+    };
+
+    setLoading(true);
+    ipcRenderer.on("retrive-indicator", handleIndicator);
+
+    return () => {
+      ipcRenderer.removeListener("retrive-indicator", handleIndicator);
+    };
   }, []);
 
   return {

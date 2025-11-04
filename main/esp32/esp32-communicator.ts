@@ -3,6 +3,7 @@ import * as os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { logger, systemLog } from "../logger";
+import { SensorReadingOptions } from "../interfaces/sensor";
 
 const execAsync = promisify(exec);
 
@@ -34,27 +35,33 @@ export class ESP32Communicator {
   /**
    * Log ESP32 diagnostic information to both console and database
    */
-  private async logESP32(level: 'INFO' | 'ERROR' | 'DEBUG', message: string, data?: any): Promise<void> {
+  private async logESP32(
+    level: "INFO" | "ERROR" | "DEBUG",
+    message: string,
+    data?: any
+  ): Promise<void> {
     const timestamp = new Date().toISOString();
     const logMessage = `[ESP32-${level}] ${timestamp} ${message}`;
 
     // Console logging for immediate visibility
-    if (level === 'ERROR') {
+    if (level === "ERROR") {
       console.error(logMessage);
-      if (data) console.error('Data:', data);
+      if (data) console.error("Data:", data);
     } else {
       console.log(logMessage);
-      if (data) console.log('Data:', data);
+      if (data) console.log("Data:", data);
     }
 
     // Database logging for persistence
     try {
       await logger({
         user: "ESP32-System",
-        message: `${logMessage}${data ? ` | Data: ${JSON.stringify(data)}` : ''}`
+        message: `${logMessage}${
+          data ? ` | Data: ${JSON.stringify(data)}` : ""
+        }`,
       });
     } catch (error) {
-      console.error('Failed to log to database:', error);
+      console.error("Failed to log to database:", error);
     }
   }
 
@@ -69,12 +76,12 @@ export class ESP32Communicator {
       for (const [name, configs] of Object.entries(interfaces)) {
         if (configs) {
           for (const config of configs) {
-            if (!config.internal && config.family === 'IPv4') {
+            if (!config.internal && config.family === "IPv4") {
               activeInterfaces.push({
                 name,
                 address: config.address,
                 netmask: config.netmask,
-                cidr: config.cidr
+                cidr: config.cidr,
               });
             }
           }
@@ -84,10 +91,10 @@ export class ESP32Communicator {
       // Get routing table (Windows)
       let routingTable = [];
       try {
-        const { stdout } = await execAsync('route print');
-        routingTable = stdout.split('\n').slice(0, 10); // First 10 lines
+        const { stdout } = await execAsync("route print");
+        routingTable = stdout.split("\n").slice(0, 10); // First 10 lines
       } catch (error) {
-        routingTable = ['Failed to get routing table'];
+        routingTable = ["Failed to get routing table"];
       }
 
       // Check ARP table for ESP32 IP
@@ -96,27 +103,27 @@ export class ESP32Communicator {
         const { stdout } = await execAsync(`arp -a ${this.ESP32_IP}`);
         arpEntry = stdout.trim();
       } catch (error) {
-        arpEntry = 'No ARP entry found';
+        arpEntry = "No ARP entry found";
       }
 
       // Ping test
       let pingResult = null;
       try {
         const { stdout } = await execAsync(`ping -n 1 ${this.ESP32_IP}`);
-        pingResult = stdout.includes('TTL') ? 'Ping successful' : 'Ping failed';
+        pingResult = stdout.includes("TTL") ? "Ping successful" : "Ping failed";
       } catch (error) {
-        pingResult = 'Ping failed - host unreachable';
+        pingResult = "Ping failed - host unreachable";
       }
 
       return {
         activeInterfaces,
-        routingTable: routingTable.join('\n'),
+        routingTable: routingTable.join("\n"),
         arpEntry,
         pingResult,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      await this.logESP32('ERROR', 'Failed to get network diagnostics', error);
+      await this.logESP32("ERROR", "Failed to get network diagnostics", error);
       return { error: error.message };
     }
   }
@@ -134,46 +141,54 @@ export class ESP32Communicator {
     const maxRetries = options.retries || this.DEFAULT_RETRIES;
     const baseRetryDelay = options.retryDelay || this.DEFAULT_RETRY_DELAY;
 
-    await this.logESP32('INFO', `Starting ESP32 device info retrieval`, {
+    await this.logESP32("INFO", `Starting ESP32 device info retrieval`, {
       targetIP: this.ESP32_IP,
       timeout,
       maxRetries,
-      attempt: 1
+      attempt: 1,
     });
 
     // Run network diagnostics on first attempt
     if (maxRetries > 0) {
-      await this.logESP32('INFO', 'Collecting network diagnostics...');
+      await this.logESP32("INFO", "Collecting network diagnostics...");
       const networkDiagnostics = await this.getNetworkDiagnostics();
-      await this.logESP32('DEBUG', 'Network diagnostics collected', networkDiagnostics);
+      await this.logESP32(
+        "DEBUG",
+        "Network diagnostics collected",
+        networkDiagnostics
+      );
     }
 
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        await this.logESP32('INFO', `Attempting ESP32 connection`, {
+        await this.logESP32("INFO", `Attempting ESP32 connection`, {
           attempt: `${attempt}/${maxRetries}`,
           targetIP: this.ESP32_IP,
-          endpoint: '/info'
+          endpoint: "/info",
         });
 
         // Simple fix: Direct HTTP connection to bypass DNS resolution issues
         const networkAwareTimeout = attempt === 1 ? timeout : timeout * 1.5;
-        await this.logESP32('DEBUG', `Making HTTP request`, {
+        await this.logESP32("DEBUG", `Making HTTP request`, {
           ip: this.ESP32_IP,
-          path: '/info',
-          timeout: networkAwareTimeout
+          path: "/info",
+          timeout: networkAwareTimeout,
         });
 
         const startTime = Date.now();
-        const response = await ESP32Communicator.makeHttpRequest(this.ESP32_IP, '/info', networkAwareTimeout);
+        const response = await ESP32Communicator.makeHttpRequest(
+          this.ESP32_IP,
+          "/info",
+          networkAwareTimeout
+        );
         const responseTime = Date.now() - startTime;
 
-        await this.logESP32('DEBUG', `HTTP request completed`, {
+        await this.logESP32("DEBUG", `HTTP request completed`, {
           responseTime,
           statusCode: response.status,
-          dataSize: JSON.stringify(response.data).length
+          dataSize: JSON.stringify(response.data).length,
         });
 
         // Validate response structure
@@ -194,7 +209,10 @@ export class ESP32Communicator {
           console.log(
             "ESP32: Detected device nested response structure, extracting device field"
           );
-        } else if (response.data.data && typeof response.data.data === "object") {
+        } else if (
+          response.data.data &&
+          typeof response.data.data === "object"
+        ) {
           // Nested structure: { data: { mac_address: "...", ip_address: "...", ... } }
           deviceInfo = response.data.data;
           console.log(
@@ -252,38 +270,43 @@ export class ESP32Communicator {
           uptime: deviceInfo.uptime || 0,
         };
 
-        await this.logESP32('INFO', `Successfully retrieved device info`, {
+        await this.logESP32("INFO", `Successfully retrieved device info`, {
           mac_address: normalizedDeviceInfo.mac_address,
           ip_address: normalizedDeviceInfo.ip_address,
-          firmware_version: normalizedDeviceInfo.firmware_version
+          firmware_version: normalizedDeviceInfo.firmware_version,
         });
         return normalizedDeviceInfo;
       } catch (error: any) {
         lastError = error;
 
-        await this.logESP32('ERROR', `ESP32 communication attempt failed`, {
+        await this.logESP32("ERROR", `ESP32 communication attempt failed`, {
           attempt: `${attempt}/${maxRetries}`,
           errorMessage: error.message,
           errorName: error.name,
           errorCode: error.code,
-          errorStack: error.stack?.split('\n')[0], // First line of stack trace
-          targetIP: this.ESP32_IP
+          errorStack: error.stack?.split("\n")[0], // First line of stack trace
+          targetIP: this.ESP32_IP,
         });
 
         // Option 1: Exponential backoff for retries
-        const exponentialRetryDelay = baseRetryDelay * Math.pow(1.5, attempt - 1);
+        const exponentialRetryDelay =
+          baseRetryDelay * Math.pow(1.5, attempt - 1);
 
         if (attempt < maxRetries) {
-          await this.logESP32('INFO', `Retrying ESP32 connection`, {
+          await this.logESP32("INFO", `Retrying ESP32 connection`, {
             retryDelay: exponentialRetryDelay,
-            nextAttempt: attempt + 1
+            nextAttempt: attempt + 1,
           });
           await this.sleep(exponentialRetryDelay);
         } else {
-          await this.logESP32('ERROR', `All ESP32 communication attempts failed`, {
-            totalAttempts: maxRetries,
-            finalError: error.message
-          });
+          await this.logESP32(
+            "ERROR",
+            `All ESP32 communication attempts failed`,
+            {
+              totalAttempts: maxRetries,
+              finalError: error.message,
+            }
+          );
         }
       }
     }
@@ -345,6 +368,141 @@ export class ESP32Communicator {
     };
   }
 
+  private getMockSensorReading(): {
+    temp: number;
+    humid: number;
+    battery?: number;
+  } {
+    return {
+      temp: 24 + Math.random() * 2,
+      humid: 45 + Math.random() * 5,
+      battery: 80,
+    };
+  }
+
+  async getSensorReading(options: SensorReadingOptions = {}): Promise<{
+    success: boolean;
+    data?: { temp: number; humid: number; battery?: number };
+    error?: string;
+  }> {
+    const timeout = options.timeout || this.DEFAULT_TIMEOUT;
+    const maxRetries = options.retries || this.DEFAULT_RETRIES;
+    const retryDelay = options.retryDelay || this.DEFAULT_RETRY_DELAY;
+
+    await this.logESP32("INFO", "Starting ESP32 sensor reading", {
+      timeout,
+      maxRetries,
+    });
+
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await this.logESP32("DEBUG", "Requesting ESP32 sensor data", {
+          attempt,
+        });
+
+        const response = await ESP32Communicator.makeHttpRequest(
+          this.ESP32_IP,
+          "/sensor",
+          timeout
+        );
+
+        const payload = this.normalizeSensorPayload(response.data);
+
+        this.validateSensorPayload(payload);
+
+        await this.logESP32("INFO", "ESP32 sensor reading successful", {
+          attempt,
+          temp: payload.temp,
+          humid: payload.humid,
+        });
+
+        return {
+          success: true,
+          data: payload,
+        };
+      } catch (error: any) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        await this.logESP32("ERROR", "ESP32 sensor reading failed", {
+          attempt,
+          error: lastError.message,
+        });
+
+        if (attempt < maxRetries) {
+          const delay = retryDelay * Math.pow(2, attempt - 1);
+          await this.logESP32("DEBUG", "Retrying ESP32 sensor read", {
+            nextAttempt: attempt + 1,
+            delay,
+          });
+          await this.sleep(delay);
+        }
+      }
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      await this.logESP32(
+        "INFO",
+        "Using mock ESP32 sensor data (development mode)"
+      );
+      return {
+        success: true,
+        data: this.getMockSensorReading(),
+      };
+    }
+
+    return {
+      success: false,
+      error: lastError?.message || "Failed to retrieve ESP32 sensor data",
+    };
+  }
+
+  private normalizeSensorPayload(data: any): {
+    temp: number;
+    humid: number;
+    battery?: number;
+  } {
+    if (!data) {
+      throw new Error("Empty sensor payload from ESP32");
+    }
+
+    // Handle different response structures
+    const payload = data?.data?.sensor ?? data?.sensor ?? data?.status ?? data;
+
+    const temp = Number(
+      payload?.temp ?? payload?.temperature ?? payload?.temperature_c
+    );
+    const humid = Number(
+      payload?.humid ?? payload?.humidity ?? payload?.humidity_percent
+    );
+    const battery =
+      payload?.battery ?? payload?.battery_percent ?? payload?.batteryLevel;
+
+    return { temp, humid, battery };
+  }
+
+  private validateSensorPayload(payload: {
+    temp: number;
+    humid: number;
+  }): void {
+    if (!Number.isFinite(payload.temp)) {
+      throw new Error("ESP32 sensor temperature is not a number");
+    }
+
+    if (!Number.isFinite(payload.humid)) {
+      throw new Error("ESP32 sensor humidity is not a number");
+    }
+
+    if (payload.temp < -40 || payload.temp > 85) {
+      throw new Error(`ESP32 sensor temperature out of range: ${payload.temp}`);
+    }
+
+    if (payload.humid < 0 || payload.humid > 100) {
+      throw new Error(`ESP32 sensor humidity out of range: ${payload.humid}`);
+    }
+  }
+
   /**
    * Simple HTTP request helper to bypass DNS resolution issues on local networks
    * @param ip ESP32 IP address
@@ -359,13 +517,15 @@ export class ESP32Communicator {
   ): Promise<{ data: any; status: number }> {
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
-      const requestId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const requestId = `${Date.now()}-${Math.random()
+        .toString(36)
+        .substr(2, 9)}`;
 
       console.log(`[ESP32-DEBUG] ${requestId} Creating HTTP request`, {
         ip,
         path,
         timeout,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       const options = {
@@ -389,8 +549,37 @@ export class ESP32Communicator {
           statusMessage: res.statusMessage,
           headers: res.headers,
           connectionTime,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
+
+        // Validate HTTP status code before proceeding
+        if (res.statusCode && res.statusCode >= 400) {
+          const errorTime = Date.now() - startTime;
+          const error = new Error(`HTTP ${res.statusCode}: ${res.statusMessage || 'Endpoint Error'}`);
+          (error as any).statusCode = res.statusCode;
+          (error as any).path = path;
+
+          console.error(`[ESP32-DEBUG] ${requestId} HTTP error`, {
+            statusCode: res.statusCode,
+            statusMessage: res.statusMessage,
+            path,
+            errorTime,
+            timestamp: new Date().toISOString(),
+          });
+
+          reject(error);
+          return;
+        }
+
+        // Validate content type if available
+        const contentType = res.headers['content-type']?.toLowerCase() || '';
+        if (contentType && !contentType.includes('application/json')) {
+          console.warn(`[ESP32-DEBUG] ${requestId} Unexpected content type`, {
+            contentType,
+            path,
+            timestamp: new Date().toISOString(),
+          });
+        }
 
         let data = "";
         let chunksReceived = 0;
@@ -401,7 +590,7 @@ export class ESP32Communicator {
           console.log(`[ESP32-DEBUG] ${requestId} Chunk received`, {
             chunkSize: chunk.length,
             totalChunks: chunksReceived,
-            totalDataSize: data.length
+            totalDataSize: data.length,
           });
         });
 
@@ -411,15 +600,26 @@ export class ESP32Communicator {
             totalTime,
             dataSize: data.length,
             chunksReceived,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
+
+          // Validate response data before JSON parsing
+          if (!data || data.trim().length === 0) {
+            console.error(`[ESP32-DEBUG] ${requestId} Empty response`, {
+              path,
+              dataSize: data.length,
+              timestamp: new Date().toISOString(),
+            });
+            reject(new Error(`Empty response from ESP32 endpoint: ${path}`));
+            return;
+          }
 
           try {
             const jsonData = JSON.parse(data);
             console.log(`[ESP32-DEBUG] ${requestId} JSON parsed successfully`, {
               dataType: typeof jsonData,
               keys: Object.keys(jsonData || {}),
-              timestamp: new Date().toISOString()
+              timestamp: new Date().toISOString(),
             });
 
             resolve({
@@ -431,9 +631,11 @@ export class ESP32Communicator {
               error: error.message,
               rawData: data.substring(0, 200), // First 200 chars
               dataSize: data.length,
-              timestamp: new Date().toISOString()
+              path,
+              contentType,
+              timestamp: new Date().toISOString(),
             });
-            reject(new Error(`Invalid JSON response: ${error.message}`));
+            reject(new Error(`Invalid JSON response from ESP32 endpoint ${path}: ${error.message}`));
           }
         });
       });
@@ -446,22 +648,22 @@ export class ESP32Communicator {
           localPort: socket.localPort,
           remoteAddress: socket.remoteAddress,
           remotePort: socket.remotePort,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
 
-        socket.on('connect', () => {
+        socket.on("connect", () => {
           const connectTime = Date.now() - startTime;
           console.log(`[ESP32-DEBUG] ${requestId} Socket connected`, {
             connectTime,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
         });
 
-        socket.on('error', (socketError: any) => {
+        socket.on("error", (socketError: any) => {
           console.error(`[ESP32-DEBUG] ${requestId} Socket error`, {
             error: socketError.message,
             errorCode: socketError.code,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
         });
       });
@@ -474,7 +676,7 @@ export class ESP32Communicator {
           errno: error.errno,
           syscall: error.syscall,
           errorTime,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         reject(error);
       });
@@ -484,7 +686,7 @@ export class ESP32Communicator {
         console.error(`[ESP32-DEBUG] ${requestId} Request timeout`, {
           timeoutTime,
           requestedTimeout: timeout,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
         req.destroy();
         reject(new Error(`HTTP request timeout after ${timeout}ms`));
@@ -493,7 +695,7 @@ export class ESP32Communicator {
       req.setTimeout(timeout);
 
       console.log(`[ESP32-DEBUG] ${requestId} Sending request`, {
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       req.end();
     });
