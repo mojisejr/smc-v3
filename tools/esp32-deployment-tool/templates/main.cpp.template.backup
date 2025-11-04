@@ -9,7 +9,8 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
-#include <DHT.h>
+#include <Wire.h>
+#include <Adafruit_SHT31.h>
 
 // USB Host and Serial Communication for CU12
 #include <USB.h>
@@ -43,10 +44,8 @@ const char* CUSTOMER_ORG = "{{ORGANIZATION}}";
 const char* CUSTOMER_ID = "{{CUSTOMER_ID}}";  
 const char* APPLICATION_NAME = "{{APPLICATION_NAME}}";
 
-// DHT22 Sensor Configuration (Digital GPIO pin)
-#define DHTPIN 4        // Digital pin for DHT22
-#define DHTTYPE DHT22
-DHT dht(DHTPIN, DHTTYPE);
+// SHT30 I2C Sensor Configuration (Using default I2C pins)
+Adafruit_SHT31 sht31 = Adafruit_SHT31();
 
 // Sensor status tracking
 bool sensorAvailable = false;
@@ -95,7 +94,7 @@ void logCU12Event(String level, String message, String details = "") {
 }
 
 void logSensorEvent(String level, String message, String details = "") {
-  addSystemLog(level, "DHT22", message, details);
+  addSystemLog(level, "SHT30", message, details);
 }
 
 void logSystemEvent(String level, String message, String details = "") {
@@ -292,40 +291,52 @@ void setup() {
                   "SSID: " + String(AP_SSID) + ", IP: " + WiFi.softAPIP().toString());
   logNetworkEvent("INFO", "MAC Address: " + WiFi.macAddress());
   
-    
+  // Initialize I2C for SHT30 Sensor - Medical Device Compliance
+  logSensorEvent("INFO", "Initializing SHT30 I2C Temperature/Humidity Sensor");
+  Wire.begin(); // Use default I2C pins (SDA=21, SCL=22 for ESP32)
+  Wire.setClock(100000); // Set I2C clock to 100kHz for stable communication
+  logSensorEvent("INFO", "I2C initialized", "Default pins (SDA=21, SCL=22), Clock=100kHz");
+  
   // Medical Device Sensor Validation with Retry Logic
-  logSensorEvent("INFO", "Starting DHT22 sensor connectivity test with retry mechanism");
-  delay(1000); // Wait for system to stabilize
+  logSensorEvent("INFO", "Starting sensor connectivity test with retry mechanism");
+  delay(1000); // Wait for I2C to stabilize
   
   bool sensorInitialized = false;
   int retryCount = 0;
   const int maxRetries = 3;
   
-  // Initialize DHT22 sensor
-  dht.begin();
-  delay(2000); // DHT22 requires 2 seconds startup
-
   // Retry loop for medical device reliability
   while (!sensorInitialized && retryCount < maxRetries) {
     retryCount++;
     logSensorEvent("INFO", "Sensor initialization attempt " + String(retryCount) + "/" + String(maxRetries));
-
-    // Perform comprehensive sensor validation
-    float temp = dht.readTemperature();
-    float humidity = dht.readHumidity();
-
-    // Validate DHT22 readings
-    if (!isnan(temp) && !isnan(humidity) &&
-        temp >= -40 && temp <= 80 &&
-        humidity >= 0 && humidity <= 100) {
-      sensorInitialized = true;
-      sensorAvailable = true;
-      sensorMode = "live";
-      logSensorEvent("INFO", "✅ DHT22 sensor initialized and operational",
-                     "Temp: " + String(temp, 2) + "°C, Humidity: " + String(humidity, 2) + "%RH");
+    
+    if (sht31.begin(0x44)) {
+      delay(500); // Allow sensor to stabilize after initialization
+      logSensorEvent("INFO", "I2C communication established", "Address: 0x44");
+      
+      // Perform comprehensive sensor validation
+      float temp = sht31.readTemperature();
+      float humidity = sht31.readHumidity();
+      
+      // Medical device range validation (extended for safety)
+      if (!isnan(temp) && !isnan(humidity) && 
+          temp >= -40.0 && temp <= 85.0 &&     // SHT30 operating range
+          humidity >= 0.0 && humidity <= 100.0) {
+        
+        sensorInitialized = true;
+        sensorAvailable = true;
+        sensorMode = "live";
+        logSensorEvent("INFO", "✅ SHT30 sensor validated and operational", 
+                       "Temp: " + String(temp, 2) + "°C, Humidity: " + String(humidity, 2) + "%RH");
+        logSensorEvent("INFO", "Sensor status confirmed", "Address: 0x44, Mode: Live, Retry: " + String(retryCount));
+      } else {
+        sensorErrorMessage = "Sensor reading validation failed - Invalid temperature or humidity values";
+        logSensorEvent("WARN", sensorErrorMessage, "Temp: " + String(temp, 2) + ", Humidity: " + String(humidity, 2));
+        delay(1000); // Wait before retry
+      }
     } else {
-      sensorErrorMessage = "Sensor reading validation failed - Invalid temperature or humidity values";
-      logSensorEvent("WARN", sensorErrorMessage, "Temp: " + String(temp, 2) + ", Humidity: " + String(humidity, 2));
+      sensorErrorMessage = "I2C communication failed - SHT30 sensor not responding at address 0x44";
+      logSensorEvent("WARN", sensorErrorMessage, "Attempt " + String(retryCount));
       delay(1000); // Wait before retry
     }
   }
@@ -335,7 +346,7 @@ void setup() {
     sensorAvailable = false;
     sensorMode = "error";
     if (sensorErrorMessage.isEmpty()) {
-      sensorErrorMessage = "DHT22 sensor initialization failed after " + String(maxRetries) + " retry attempts";
+      sensorErrorMessage = "SHT30 sensor initialization failed after " + String(maxRetries) + " retry attempts";
     }
     logSensorEvent("ERROR", "Sensor initialization failed", sensorErrorMessage);
     logSensorEvent("WARN", "Hardware validation required - System will return sensor errors");
@@ -401,21 +412,21 @@ void setup() {
     request->send(200, "application/json", jsonString);
   });
 
-  // Sensor endpoint - DHT22 Digital Temperature/Humidity
+  // Sensor endpoint - SHT30 I2C Temperature/Humidity 
   server.on("/sensor", HTTP_GET, [](AsyncWebServerRequest *request) {
     JsonDocument doc;
     
     if (!sensorAvailable) {
       // Sensor not available - return error response
       doc["success"] = false;
-      doc["error"] = "DHT22 sensor not available";
+      doc["error"] = "SHT30 sensor not available";
       doc["error_details"] = sensorErrorMessage;
-      doc["sensor"] = "DHT22";
+      doc["sensor"] = "SHT30";
       doc["mode"] = sensorMode;
       doc["sensor_available"] = false;
       doc["timestamp"] = millis();
       doc["customer_id"] = CUSTOMER_ID;
-      doc["troubleshooting"] = "Check DHT22 connections, verify sensor power supply, ensure correct GPIO pin (GPIO 4)";
+      doc["troubleshooting"] = "Check I2C connections, verify sensor power supply, ensure correct I2C address (0x44)";
       
       String jsonString;
       serializeJson(doc, jsonString);
@@ -425,8 +436,8 @@ void setup() {
     }
     
     // Try to read from real sensor
-    float temperature = dht.readTemperature();
-    float humidity = dht.readHumidity();
+    float temperature = sht31.readTemperature();
+    float humidity = sht31.readHumidity();
     
     // Validate sensor readings
     if (isnan(temperature) || isnan(humidity) || 
@@ -435,14 +446,14 @@ void setup() {
       
       // Sensor reading failed - return error
       doc["success"] = false;
-      doc["error"] = "DHT22 sensor reading failed";
+      doc["error"] = "SHT30 sensor reading failed";
       doc["error_details"] = "Invalid sensor readings - temperature: " + String(temperature) + "°C, humidity: " + String(humidity) + "%";
-      doc["sensor"] = "DHT22";
+      doc["sensor"] = "SHT30";
       doc["mode"] = "error";
       doc["sensor_available"] = true;
       doc["timestamp"] = millis();
       doc["customer_id"] = CUSTOMER_ID;
-      doc["troubleshooting"] = "Sensor detected but readings invalid - check sensor condition and GPIO connection";
+      doc["troubleshooting"] = "Sensor detected but readings invalid - check sensor condition and I2C communication";
       
       String jsonString;
       serializeJson(doc, jsonString);
@@ -455,7 +466,7 @@ void setup() {
     doc["success"] = true;
     doc["temp"] = round(temperature * 10) / 10.0; // Round to 1 decimal
     doc["humid"] = round(humidity * 10) / 10.0;   // Round to 1 decimal
-    doc["sensor"] = "DHT22";
+    doc["sensor"] = "SHT30";
     doc["mode"] = "live";
     doc["sensor_available"] = true;
     doc["timestamp"] = millis();
@@ -788,8 +799,8 @@ void setup() {
     sensorDiag["mode"] = sensorMode;
     sensorDiag["error_message"] = sensorErrorMessage;
     if (sensorAvailable) {
-      float temp = dht.readTemperature();
-      float hum = dht.readHumidity();
+      float temp = sht31.readTemperature();
+      float hum = sht31.readHumidity();
       sensorDiag["current_temperature"] = temp;
       sensorDiag["current_humidity"] = hum;
       sensorDiag["temp_valid"] = !isnan(temp) && temp > -40 && temp < 85;
@@ -834,12 +845,12 @@ void validateSystemHealth() {
   
   // Check sensor health
   if (sensorAvailable) {
-    float temp = dht.readTemperature();
-    float hum = dht.readHumidity();
-
+    float temp = sht31.readTemperature();
+    float hum = sht31.readHumidity();
+    
     // Validate sensor readings for medical device compliance
     if (isnan(temp) || isnan(hum) || temp < -40 || temp > 85 || hum < 0 || hum > 100) {
-      logMedicalEvent("SENSOR_HEALTH", "DHT22 readings out of range - T:" + String(temp) + "C H:" + String(hum) + "%", "ERROR");
+      logMedicalEvent("SENSOR_HEALTH", "SHT30 readings out of range - T:" + String(temp) + "C H:" + String(hum) + "%", "ERROR");
       sensorAvailable = false;
       sensorErrorMessage = "Sensor readings validation failed";
       sensorMode = "error";
