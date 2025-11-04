@@ -11,6 +11,7 @@ interface LockedSlotProps {
   time: string;
   temp: number;
   humid: number;
+  isValid: boolean;
 }
 
 export const LockedSlot = ({
@@ -20,6 +21,7 @@ export const LockedSlot = ({
   time,
   temp,
   humid,
+  isValid,
 }: LockedSlotProps) => {
   const [bg, setBg] = useState<string>("bg-[#F6F6F6]");
   const [openReset, setOpenReset] = useState<boolean>(false);
@@ -69,6 +71,14 @@ export const LockedSlot = ({
           <Indicator value={temp} unit="*C" title="Temp." threshold={50} />
           <Indicator value={humid} unit="%" title="%RH" threshold={85} />
         </div>
+        {!isValid && (
+          <div className="flex items-center gap-2 px-2 pt-2 text-xs text-warning">
+            <span role="img" aria-label="warning">
+              ⚠️
+            </span>
+            <span>ตรวจสอบค่าจากเซนเซอร์</span>
+          </div>
+        )}
       </div>
 
       <div className="absolute bottom-2 right-2 text-[#5495F6] text-[40px] font-bold">
