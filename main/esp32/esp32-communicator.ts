@@ -408,7 +408,7 @@ export class ESP32Communicator {
           timeout
         );
 
-        const payload = this.normalizeSensorPayload(response.data);
+        const payload = await this.normalizeSensorPayload(response.data);
 
         this.validateSensorPayload(payload);
 
@@ -458,48 +458,134 @@ export class ESP32Communicator {
     };
   }
 
-  private normalizeSensorPayload(data: any): {
+  private async normalizeSensorPayload(data: any): Promise<{
     temp: number;
     humid: number;
     battery?: number;
-  } {
+  }> {
     if (!data) {
       throw new Error("Empty sensor payload from ESP32");
     }
 
+    // Log raw ESP32 response data for debugging
+    await this.logESP32("DEBUG", "Raw ESP32 sensor response", {
+      dataType: typeof data,
+      rawResponse: data,
+      responseKeys: Object.keys(data || {}),
+    });
+
     // Handle different response structures
-    const payload = data?.data?.sensor ?? data?.sensor ?? data?.status ?? data;
+    // ESP32 returns flat structure: { "temp": 30.9, "humid": 68, ... }
+    // But also handle nested structures for compatibility
+    let payload;
 
-    const temp = Number(
-      payload?.temp ?? payload?.temperature ?? payload?.temperature_c
-    );
-    const humid = Number(
-      payload?.humid ?? payload?.humidity ?? payload?.humidity_percent
-    );
-    const battery =
-      payload?.battery ?? payload?.battery_percent ?? payload?.batteryLevel;
+    if (data?.data?.sensor && typeof data?.data?.sensor === "object") {
+      payload = data.data.sensor;
+      await this.logESP32("DEBUG", "Using nested data.sensor structure");
+    } else if (data?.sensor && typeof data?.sensor === "object") {
+      payload = data.sensor;
+      await this.logESP32("DEBUG", "Using nested sensor structure");
+    } else if (data?.status && typeof data?.status === "object") {
+      payload = data.status;
+      await this.logESP32("DEBUG", "Using nested status structure");
+    } else if (data?.data && typeof data?.data === "object") {
+      payload = data.data;
+      await this.logESP32("DEBUG", "Using nested data structure");
+    } else {
+      // Flat structure - direct ESP32 response: { "temp": 30.9, "humid": 68 }
+      payload = data;
+      await this.logESP32("DEBUG", "Using flat ESP32 response structure");
+    }
 
-    return { temp, humid, battery };
+    // Log extracted payload for debugging
+    await this.logESP32("DEBUG", "Extracted sensor payload", {
+      payloadType: typeof payload,
+      payloadKeys: Object.keys(payload || {}),
+      payloadValues: payload,
+    });
+
+    // Enhanced type conversion with proper validation
+    let temp: number;
+    let humid: number;
+    let battery: number | undefined;
+
+    // Temperature conversion with fallbacks and validation
+    const rawTemp = payload?.temp ?? payload?.temperature ?? payload?.temperature_c;
+    if (rawTemp !== undefined && rawTemp !== null) {
+      temp = parseFloat(String(rawTemp));
+      if (isNaN(temp)) {
+        await this.logESP32("ERROR", "Temperature conversion failed", {
+          rawValue: rawTemp,
+          rawType: typeof rawTemp,
+          conversionResult: temp,
+        });
+        throw new Error(`ESP32 sensor temperature conversion failed: '${rawTemp}' (${typeof rawTemp}) is not a valid number`);
+      }
+    } else {
+      throw new Error("ESP32 sensor temperature value not found in payload");
+    }
+
+    // Humidity conversion with fallbacks and validation
+    const rawHumid = payload?.humid ?? payload?.humidity ?? payload?.humidity_percent;
+    if (rawHumid !== undefined && rawHumid !== null) {
+      humid = parseFloat(String(rawHumid));
+      if (isNaN(humid)) {
+        await this.logESP32("ERROR", "Humidity conversion failed", {
+          rawValue: rawHumid,
+          rawType: typeof rawHumid,
+          conversionResult: humid,
+        });
+        throw new Error(`ESP32 sensor humidity conversion failed: '${rawHumid}' (${typeof rawHumid}) is not a valid number`);
+      }
+    } else {
+      throw new Error("ESP32 sensor humidity value not found in payload");
+    }
+
+    // Battery conversion (optional)
+    const rawBattery = payload?.battery ?? payload?.battery_percent ?? payload?.batteryLevel;
+    if (rawBattery !== undefined && rawBattery !== null) {
+      battery = parseFloat(String(rawBattery));
+      if (isNaN(battery)) {
+        await this.logESP32("DEBUG", "Battery conversion failed, using undefined", {
+          rawValue: rawBattery,
+          rawType: typeof rawBattery,
+          conversionResult: battery,
+        });
+        battery = undefined; // Battery is optional, don't throw error
+      }
+    }
+
+    const result = { temp, humid, battery };
+
+    await this.logESP32("DEBUG", "Normalized sensor payload", {
+      finalResult: result,
+      tempType: typeof temp,
+      humidType: typeof humid,
+      batteryType: typeof battery,
+    });
+
+    return result;
   }
 
   private validateSensorPayload(payload: {
     temp: number;
     humid: number;
   }): void {
+    // Enhanced validation with detailed error messages showing actual problematic values
     if (!Number.isFinite(payload.temp)) {
-      throw new Error("ESP32 sensor temperature is not a number");
+      throw new Error(`ESP32 sensor temperature is not a valid number. Received: ${payload.temp} (type: ${typeof payload.temp}, value: "${String(payload.temp)}")`);
     }
 
     if (!Number.isFinite(payload.humid)) {
-      throw new Error("ESP32 sensor humidity is not a number");
+      throw new Error(`ESP32 sensor humidity is not a valid number. Received: ${payload.humid} (type: ${typeof payload.humid}, value: "${String(payload.humid)}")`);
     }
 
     if (payload.temp < -40 || payload.temp > 85) {
-      throw new Error(`ESP32 sensor temperature out of range: ${payload.temp}`);
+      throw new Error(`ESP32 sensor temperature out of range. Value: ${payload.temp}°C, Expected range: -40°C to 85°C`);
     }
 
     if (payload.humid < 0 || payload.humid > 100) {
-      throw new Error(`ESP32 sensor humidity out of range: ${payload.humid}`);
+      throw new Error(`ESP32 sensor humidity out of range. Value: ${payload.humid}%, Expected range: 0% to 100%`);
     }
   }
 
