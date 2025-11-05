@@ -87,7 +87,7 @@
 =plan > [task description]      # Create Task GitHub Issue using /docs/TASK-ISSUE-TEMP.md (assigned by current mode) - NEVER .md file
 =impl > [issue-number]         # Implementation workflow for specific GitHub issue (triggers based on current mode)
 =impl > [issue-number] [msg]   # Implementation with additional context/clarification
-=pr > [feedback]               # Create Pull Request from pushed feature branch
+=pr > [feedback]               # Create Pull Request from pushed feature branch (ALWAYS to staging, NEVER to main)
 
 # Knowledge Management
 =kupdate [category] "[topic]"   # Create Knowledge GitHub Issue using /docs/KNOWLEDGE-TEMP.md (NEVER .md file) - PROMPTS for hub integration
