@@ -90,11 +90,11 @@
 =pr > [feedback]               # Create Pull Request from pushed feature branch (ALWAYS to staging, NEVER to main)
 
 # Knowledge Management
-=kupdate [category] "[topic]"   # Create Knowledge GitHub Issue using /docs/KNOWLEDGE-TEMP.md (NEVER .md file) - PROMPTS for hub integration
+=khub                          # 🔍 ALWAYS read Knowledge Hub #102 FIRST before creating knowledge entries
+=kupdate [category] "[topic]"   # Create Knowledge GitHub Issue using /docs/KNOWLEDGE-TEMP.md (NEVER .md file) - CHECK existing numbers first!
 =klink [knowledge-issue-number] # Link knowledge entry to Knowledge Hub #102 (automatic section placement)
 =ksync                          # Synchronize Knowledge Hub #102 with all knowledge entries
 =ksearch "[query]"              # Search across all knowledge entries
-=khub                          # Go to main Knowledge Hub issue
 =krecent                       # Show last 5 knowledge updates
 =kcategory [category]           # Show knowledge for specific category
 
@@ -164,11 +164,13 @@
 
 **Enhanced Knowledge Workflow**:
 
-1. **Create**: `=kupdate [category] "[topic]"` → Creates knowledge issue
-2. **Prompt**: System asks "Link to Knowledge Hub #102? (y/n)"
-3. **Link**: If "y" → Automatically runs `=klink`
-4. **Sync**: Use `=ksync` to ensure hub is fully synchronized
-5. **Discover**: All knowledge accessible through `=khub` navigation
+1. **🔍 Pre-Creation Check**: `=khub` → Read Knowledge Hub #102 FIRST to check existing KNOW-[CATEGORY]-XXX numbers
+2. **Verify**: Check category section for existing numbers to avoid duplicates (e.g., KNOW-DEVICE-001, KNOW-DEVICE-002)
+3. **Create**: `=kupdate [category] "[topic]"` → Creates knowledge issue with next available number
+4. **Prompt**: System asks "Link to Knowledge Hub #102? (y/n)"
+5. **Link**: If "y" → Automatically runs `=klink`
+6. **Sync**: Use `=ksync` to ensure hub is fully synchronized
+7. **Discover**: All knowledge accessible through `=khub` navigation
 
 ### Knowledge Categories
 
@@ -189,6 +191,34 @@
 - Example: `KNOW-DEVICE-001`, `KNOW-DATABASE-015`
 - Auto-increment per category
 - Easy reference and cross-linking
+
+### 🔍 Knowledge ID Conflict Prevention (CRITICAL)
+
+**MANDATORY Pre-Creation Checklist**:
+
+1. **ALWAYS run `=khub` first** - Read Knowledge Hub #102 completely
+2. **Check existing numbers** in your category section (e.g., "Device Knowledge")
+3. **Identify next available number** (if 001, 002 exist, use 003)
+4. **Never assume** - always verify existing entries before creating
+
+**Common Mistakes to Avoid**:
+
+- ❌ Creating KNOW-DEVICE-001 when it already exists
+- ❌ Not checking Knowledge Hub #102 before creating entries
+- ❌ Assuming numbers without verification
+- ❌ Creating duplicate knowledge IDs
+
+**Correct Workflow Example**:
+
+```bash
+# ❌ WRONG (creates duplicate)
+= kupdate device "SHT30 sensor fix"  # Creates KNOW-DEVICE-001 (duplicate!)
+
+# ✅ RIGHT (prevents duplicates)
+= khub                              # Read Knowledge Hub #102
+# See: KNOW-DEVICE-001, KNOW-DEVICE-002 exist
+= kupdate device "SHT30 sensor fix" # Creates KNOW-DEVICE-003 (correct!)
+```
 
 ### Auto-Label Creation
 
