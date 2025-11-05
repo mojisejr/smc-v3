@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import Head from "next/head";
+import { useRouter } from "next/router";
+import { ipcRenderer } from "electron";
 import Slot from "../components/Slot";
 import Image from "next/image";
 
@@ -142,6 +144,7 @@ const mockSlots = [
 ];
 
 function Home() {
+  const { replace } = useRouter();
   const { slots } = useKuStates();
   const { unlocking } = useUnlock();
   const { dispensing } = useDispense();
@@ -150,6 +153,11 @@ function Home() {
   const [closeLockWait, setCloseLockWait] = useState<boolean>(false);
   const [openDeactivate, setOpenDeactivate] = useState<boolean>(false);
   const [closeDispenseWait, setCloseDispenseWait] = useState<boolean>(false);
+
+  // License validation states
+  const [isValidatingLicense, setIsValidatingLicense] = useState<boolean>(true);
+  const [licenseValidationComplete, setLicenseValidationComplete] = useState<boolean>(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (unlocking.unlocking) {
@@ -169,12 +177,86 @@ function Home() {
     }
   }, [dispensing]);
 
+  // License validation on component mount
+  useEffect(() => {
+    const validateLicense = async () => {
+      try {
+        setIsValidatingLicense(true);
+        setValidationError(null);
+
+        // Check license status using existing IPC handler
+        const licenseStatus = await ipcRenderer.invoke("license:status");
+
+        if (licenseStatus.isActive) {
+          // License is valid, allow access to home page
+          setLicenseValidationComplete(true);
+        } else {
+          // License is invalid, redirect to activation page
+          console.error("License validation failed:", licenseStatus.message);
+          setValidationError(licenseStatus.message || "License validation failed");
+
+          // Redirect to activation page after a brief delay to show error
+          setTimeout(() => {
+            replace("/activate-key");
+          }, 2000);
+        }
+      } catch (error: any) {
+        console.error("License validation error:", error);
+        setValidationError(error.message || "Failed to validate license");
+
+        // Redirect to activation page on error
+        setTimeout(() => {
+          replace("/activate-key");
+        }, 2000);
+      } finally {
+        setIsValidatingLicense(false);
+      }
+    };
+
+    validateLicense();
+  }, [replace]);
+
   return (
     <>
       <Head>
         <title>Smart Medication Cart V1.0</title>
       </Head>
-      <div className=" grid grid-cols-12 text-2xl text-center h-screen">
+
+      {/* License validation loading/error state */}
+      {isValidatingLicense && (
+        <div className="min-h-screen bg-base-200 flex items-center justify-center">
+          <div className="card bg-base-100 shadow-xl p-8 text-center">
+            <div className="flex flex-col items-center gap-4">
+              <Loading />
+              <h2 className="text-xl font-semibold">กำลังตรวจสอบ License...</h2>
+              <p className="text-base-content/70">กรุณารอสักครู่</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* License validation error state */}
+      {validationError && !isValidatingLicense && !licenseValidationComplete && (
+        <div className="min-h-screen bg-base-200 flex items-center justify-center">
+          <div className="card bg-base-100 shadow-xl p-8 text-center max-w-md">
+            <div className="flex flex-col items-center gap-4">
+              <div className="alert alert-error">
+                <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>การตรวจสอบ License ล้มเหลว</span>
+              </div>
+              <p className="text-sm text-base-content/70">{validationError}</p>
+              <div className="loading loading-bars loading-sm"></div>
+              <p className="text-xs text-base-content/50">กำลังไปยังหน้าเปิดใช้งาน License...</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main application - only render after successful license validation */}
+      {!isValidatingLicense && licenseValidationComplete && (
+        <div className=" grid grid-cols-12 text-2xl text-center h-screen">
         <div className="col-span-2 flex flex-col justify-between">
           <div className="w-full px-3 py-10 flex flex-col gap-3 justify-center items-center">
             <Image
@@ -230,6 +312,8 @@ function Home() {
           </div>
         </div>
       </div>
+      )}
+
       <ToastContainer
         limit={1}
         autoClose={1000}
@@ -237,39 +321,44 @@ function Home() {
         hideProgressBar
       />
 
-      <Modal
-        isOpen={unlocking.unlocking}
-        onClose={() => setCloseLockWait(true)}
-      >
-        <LockWait
-          slotNo={unlocking.slotId}
-          hn={unlocking.hn}
-          onClose={() => setCloseLockWait(true)}
-          onOpenDeactive={() => setOpenDeactivate(true)}
-        />
-      </Modal>
-      <Modal
-        // isOpen={dispensing.dispensing}
-        isOpen={!closeDispenseWait && dispensing.dispensing}
-        onClose={() => setCloseDispenseWait(true)}
-      >
-        <DispensingWait
-          slotNo={dispensing.slotId}
-          hn={dispensing.hn}
-          onClose={() => setCloseDispenseWait(true)}
-          onOpenDeactive={() => setOpenDeactivate(true)}
-        />
-      </Modal>
+      {/* Only show modals after successful validation */}
+      {!isValidatingLicense && licenseValidationComplete && (
+        <>
+          <Modal
+            isOpen={unlocking.unlocking}
+            onClose={() => setCloseLockWait(true)}
+          >
+            <LockWait
+              slotNo={unlocking.slotId}
+              hn={unlocking.hn}
+              onClose={() => setCloseLockWait(true)}
+              onOpenDeactive={() => setOpenDeactivate(true)}
+            />
+          </Modal>
+          <Modal
+            // isOpen={dispensing.dispensing}
+            isOpen={!closeDispenseWait && dispensing.dispensing}
+            onClose={() => setCloseDispenseWait(true)}
+          >
+            <DispensingWait
+              slotNo={dispensing.slotId}
+              hn={dispensing.hn}
+              onClose={() => setCloseDispenseWait(true)}
+              onOpenDeactive={() => setOpenDeactivate(true)}
+            />
+          </Modal>
 
-      <Modal isOpen={openDeactivate} onClose={() => setOpenDeactivate(false)}>
-        <DeActivate
-          slotNo={unlocking.slotId ?? dispensing.slotId}
-          onClose={() => {
-            setOpenDeactivate(false);
-            setCloseLockWait(true);
-          }}
-        />
-      </Modal>
+          <Modal isOpen={openDeactivate} onClose={() => setOpenDeactivate(false)}>
+            <DeActivate
+              slotNo={unlocking.slotId ?? dispensing.slotId}
+              onClose={() => {
+                setOpenDeactivate(false);
+                setCloseLockWait(true);
+              }}
+            />
+          </Modal>
+        </>
+      )}
     </>
   );
 }
