@@ -167,6 +167,49 @@ if (isProd) {
   LoggingHandler(cu12);
   exportLogsHandler(cu12);
 
+  // ESP32 pre-validation check - ensure device connectivity before license validation
+  console.log('License: Performing ESP32 pre-validation check...');
+  try {
+    // Use existing testConnection method (5-second timeout, 1 retry)
+    const esp32Test = await esp32Communicator.testConnection();
+
+    if (!esp32Test.success) {
+      console.log('License: ESP32 not reachable, redirecting to activation page');
+      console.log('License: ESP32 test result:', esp32Test.error);
+
+      // Direct redirect to activation page (no error dialog)
+      if (isProd) {
+        await mainWindow.loadURL("app://./activate-key.html");
+      } else {
+        const port = process.argv[2];
+        await mainWindow.loadURL(`http://localhost:${port}/activate-key`);
+      }
+
+      // Stop further initialization
+      return;
+    }
+
+    console.log('License: ESP32 pre-validation passed');
+    console.log('License: Device info:', {
+      mac: esp32Test.deviceInfo?.mac_address,
+      ip: esp32Test.deviceInfo?.ip_address,
+      responseTime: esp32Test.responseTime
+    });
+
+  } catch (error: any) {
+    console.error('License: ESP32 pre-validation error:', error.message);
+
+    // On any error during pre-validation, redirect to activation page
+    if (isProd) {
+      await mainWindow.loadURL("app://./activate-key.html");
+    } else {
+      const port = process.argv[2];
+      await mainWindow.loadURL(`http://localhost:${port}/activate-key`);
+    }
+
+    return;
+  }
+
   // Startup license validation - ensure ESP32 connectivity and MAC binding
   console.log('License: Performing startup validation...');
   try {
