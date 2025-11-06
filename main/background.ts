@@ -1,4 +1,5 @@
 import { BrowserWindow, app, dialog } from "electron";
+import * as path from "path";
 import serve from "electron-serve";
 import { createWindow } from "./helpers";
 
@@ -82,6 +83,8 @@ if (isProd) {
     maxHeight: 1080,
     closable: true,
     autoHideMenuBar: true,
+    icon: path.join(__dirname, "../resources/icon.ico"),
+    title: "DPS - Smart Medication Cart",
   });
 
   let dbConnection = false;
