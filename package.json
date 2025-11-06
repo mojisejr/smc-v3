@@ -1,7 +1,8 @@
 {
   "private": true,
-  "name": "smc",
-  "description": "Smart Medication Cart Version 1",
+  "name": "dps-smart-medication-cart",
+  "productName": "DPS - Smart Medication Cart",
+  "description": "DPS - Smart Medication Cart",
   "version": "1.0.0",
   "author": "Nonthasak.l <nonthasak.l@gmail.com>",
   "main": "app/background.js",
@@ -13,6 +14,14 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "build": {
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
     "linux": {
       "synopsis": "SMC",
       "description": "SMC",
