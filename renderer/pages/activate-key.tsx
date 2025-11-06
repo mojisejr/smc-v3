@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 
 import ESP32ConnectionStatus from "../components/ESP32ConnectionStatus";
 import LicenseKeyInput from "../components/LicenseKeyInput";
-import LicenseValidationProgress from "../components/LicenseValidationProgress";
+import LicenseValidationProgress, { ErrorType } from "../components/LicenseValidationProgress";
 
 interface ESP32DeviceInfo {
   mac_address: string;
@@ -46,6 +46,8 @@ export default function ActivatePage() {
   const [validationComplete, setValidationComplete] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSubmittingLicense, setIsSubmittingLicense] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [lastValidationTime, setLastValidationTime] = useState<number | null>(null);
 
   // Check for development mode and existing activation
   useEffect(() => {
@@ -266,9 +268,51 @@ export default function ActivatePage() {
   };
 
   const handleRetryValidation = () => {
+    // Rate limiting: prevent excessive retries
+    const now = Date.now();
+    if (lastValidationTime && (now - lastValidationTime) < 2000) {
+      // Show a brief delay message
+      setValidationError("กรุณารอสักครู่ก่อนลองใหม่...");
+      setTimeout(() => setValidationError(null), 1500);
+      return;
+    }
+
     setCurrentStep("license-input");
     setValidationComplete(false);
     setValidationError(null);
+    setRetryCount(retryCount + 1);
+    setLastValidationTime(now);
+  };
+
+  const handleRetryFromStep = (step: string) => {
+    // Reset all validation states and return to specific step
+    setCurrentStep(step as any);
+    setValidationComplete(false);
+    setValidationError(null);
+    setIsValidationInProgress(false);
+    setRetryCount(retryCount + 1);
+
+    // Clear license data if going back to device detection
+    if (step === "device-detection") {
+      setLicenseKey("");
+      setParsedLicense(null);
+    }
+  };
+
+  const handleValidationRetry = async () => {
+    if (!licenseKey) return;
+
+    setIsValidationInProgress(true);
+    setValidationError(null);
+    setLastValidationTime(Date.now());
+
+    try {
+      // Retry validation with the same license key
+      await startLicenseValidation(licenseKey);
+    } catch (error: any) {
+      setValidationError(error.message || "การตรวจสอบ License ล้มเหลว");
+      setIsValidationInProgress(false);
+    }
   };
 
   const canProceedToLicense = () => {
@@ -382,6 +426,7 @@ export default function ActivatePage() {
               esp32MacAddress={esp32DeviceInfo?.mac_address}
               licenseMacAddress={parsedLicense?.macAddress}
               onRetry={handleRetryValidation}
+              onRetryStep={handleRetryFromStep}
             />
           )}
         </div>

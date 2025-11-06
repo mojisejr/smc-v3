@@ -50,6 +50,7 @@ import { registerAllLicenseHandlers } from "./ipc/license-handlers";
 import { IndicatorDevice } from "./indicator";
 import { esp32Communicator } from "./esp32/esp32-communicator";
 import { SensorPoller } from "./services/sensorPoller";
+import { licenseValidator } from "./license/license-validator";
 /**
  * Indicates whether the application is running in production mode.
  *
@@ -166,7 +167,107 @@ if (isProd) {
   LoggingHandler(cu12);
   exportLogsHandler(cu12);
 
-  // Load the application UI based on environment
+  // ESP32 pre-validation check - ensure device connectivity before license validation
+  console.log('License: Performing ESP32 pre-validation check...');
+  try {
+    // Use existing testConnection method (5-second timeout, 1 retry)
+    const esp32Test = await esp32Communicator.testConnection();
+
+    if (!esp32Test.success) {
+      console.log('License: ESP32 not reachable, redirecting to activation page');
+      console.log('License: ESP32 test result:', esp32Test.error);
+
+      // Direct redirect to activation page (no error dialog)
+      if (isProd) {
+        await mainWindow.loadURL("app://./activate-key.html");
+      } else {
+        const port = process.argv[2];
+        await mainWindow.loadURL(`http://localhost:${port}/activate-key`);
+      }
+
+      // Stop further initialization
+      return;
+    }
+
+    console.log('License: ESP32 pre-validation passed');
+    console.log('License: Device info:', {
+      mac: esp32Test.deviceInfo?.mac_address,
+      ip: esp32Test.deviceInfo?.ip_address,
+      responseTime: esp32Test.responseTime
+    });
+
+  } catch (error: any) {
+    console.error('License: ESP32 pre-validation error:', error.message);
+
+    // On any error during pre-validation, redirect to activation page
+    if (isProd) {
+      await mainWindow.loadURL("app://./activate-key.html");
+    } else {
+      const port = process.argv[2];
+      await mainWindow.loadURL(`http://localhost:${port}/activate-key`);
+    }
+
+    return;
+  }
+
+  // Startup license validation - ensure ESP32 connectivity and MAC binding
+  console.log('License: Performing startup validation...');
+  try {
+    const validationResult = await licenseValidator.validateLicense();
+
+    if (validationResult.isValid) {
+      console.log('License: Startup validation passed', {
+        customer: validationResult.licenseData?.customerName,
+        organization: validationResult.licenseData?.organization,
+        device: validationResult.deviceInfo?.mac_address,
+        warnings: validationResult.warnings
+      });
+    } else {
+      console.error('License: Startup validation failed', {
+        error: validationResult.error,
+        licenseData: validationResult.licenseData,
+        deviceInfo: validationResult.deviceInfo
+      });
+
+      // Show error dialog and redirect to activation page
+      dialog.showErrorBox(
+        'License Validation Failed',
+        `License validation failed: ${validationResult.error}\n\nPlease check your ESP32 connection and activate a valid license.`
+      );
+
+      // Redirect to activation page instead of home page
+      if (isProd) {
+        await mainWindow.loadURL("app://./activate-key.html");
+      } else {
+        const port = process.argv[2];
+        await mainWindow.loadURL(`http://localhost:${port}/activate-key`);
+      }
+
+      // Stop further initialization
+      return;
+    }
+  } catch (error: any) {
+    console.error('License: Startup validation error', error);
+
+    // Show error dialog and redirect to activation page
+    dialog.showErrorBox(
+      'License System Error',
+      `License validation encountered an error: ${error.message}\n\nPlease ensure your ESP32 device is properly connected.`
+    );
+
+    // Redirect to activation page instead of home page
+    if (isProd) {
+      await mainWindow.loadURL("app://./activate-key.html");
+    } else {
+      const port = process.argv[2];
+      await mainWindow.loadURL(`http://localhost:${port}/activate-key`);
+    }
+
+    // Stop further initialization
+    return;
+  }
+
+  // Load the application UI based on environment (only if license validation passed)
   if (isProd) {
     await mainWindow.loadURL("app://./home.html");
   } else {

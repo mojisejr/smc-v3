@@ -123,35 +123,48 @@ export function registerESP32TestConnectionHandler(): void {
 
 /**
  * Register license status IPC handler
- * Returns current license status without full validation
+ * Returns current license status with real ESP32 validation
  */
 export function registerLicenseStatusHandler(): void {
   ipcMain.handle("license:status", async () => {
     try {
-      const license = await License.findOne({
-        where: { is_active: true }
+      console.log('License Status: Performing real validation check...');
+
+      // Perform actual ESP32 validation instead of just database check
+      const validationResult: LicenseValidationResult = await licenseValidator.validateLicense();
+
+      console.log('License Status: Validation result:', {
+        isValid: validationResult.isValid,
+        hasLicenseData: !!validationResult.licenseData,
+        hasDeviceInfo: !!validationResult.deviceInfo,
+        warnings: validationResult.warnings
       });
 
-      if (!license) {
-        return {
-          isActive: false,
-          message: "No active license"
-        };
-      }
-
+      // Return structured response compatible with frontend expectations
       return {
-        isActive: true,
-        expiresAt: license.getDataValue('expires_at'),
-        createdAt: license.getDataValue('created_at'),
-        updatedAt: license.getDataValue('updated_at'),
-        message: "License is active"
+        isActive: validationResult.isValid,
+        message: validationResult.isValid
+          ? "License is valid and active"
+          : validationResult.error || "License validation failed",
+        details: {
+          isValid: validationResult.isValid,
+          error: validationResult.error,
+          licenseData: validationResult.licenseData,
+          deviceInfo: validationResult.deviceInfo,
+          warnings: validationResult.warnings
+        }
       };
 
     } catch (error: any) {
       console.error("License status handler error:", error);
       return {
         isActive: false,
-        error: `Failed to get license status: ${error.message}`
+        message: `License status check failed: ${error.message}`,
+        details: {
+          isValid: false,
+          error: error.message,
+          warnings: [`Status handler error: ${error.name}`]
+        }
       };
     }
   });
