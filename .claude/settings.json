@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr list:*)",
+      "Bash(gh issue view:*)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "smc": {
+    "executionMode": "COPILOT",
+    "lastUpdated": "2025-01-10T23:25:00Z"
+  }
+}
