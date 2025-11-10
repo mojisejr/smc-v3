@@ -37,8 +37,7 @@ export const forceResetHandler = (cu12: CU12Controller) => {
         process: "force-reset",
         message: payload.reason,
       });
-      await cu12.sleep(1000);
-      cu12.sendCheckState();
+      // Removed auto-wait: Emergency stop should be immediate
     } catch (error) {
       cu12.win.webContents.send("force-reset-error", {
         message: "ล้างช่องไม่สำเร็จกรุณาลองใหม่อีกครั้ง",
