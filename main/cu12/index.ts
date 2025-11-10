@@ -556,7 +556,9 @@ export class CU12Controller {
         // Board 0x01 covers slots 12-14 (KU16 slots 13-15)
         const slotOnThisBoard =
           (packet.address === 0x00 && openingSlotIndexZeroBased <= 11) ||
-          (packet.address === 0x01 && openingSlotIndexZeroBased >= 12 && openingSlotIndexZeroBased <= 14);
+          (packet.address === 0x01 &&
+            openingSlotIndexZeroBased >= 12 &&
+            openingSlotIndexZeroBased <= 14);
 
         if (!slotOnThisBoard) {
           // This status response is for a different board, not the one with our opening slot
@@ -637,12 +639,9 @@ export class CU12Controller {
         });
       } else {
         // No status data available, cannot determine lock-back state
-        CU12Logger.logStatus(
-          "Cannot determine lock-back without status data",
-          {
-            slotId: this.openingSlot.slotId,
-          }
-        );
+        CU12Logger.logStatus("Cannot determine lock-back without status data", {
+          slotId: this.openingSlot.slotId,
+        });
       }
     } catch (error) {
       CU12Logger.logError(
