@@ -154,59 +154,7 @@ export class CU12Controller {
     this.serialPort.write(cmd);
   }
 
-  /**
-   * Send status check command to both boards (with debouncing)
-   */
-  sendCheckStateToAllBoards() {
-    const now = Date.now();
-    const timeSinceLastCheck = now - this.lastStatusCheckTime;
-
-    // Clear any existing timeout
-    if (this.statusCheckTimeout) {
-      clearTimeout(this.statusCheckTimeout);
-      this.statusCheckTimeout = null;
-    }
-
-    // If not enough time has passed since last check, delay this one
-    if (timeSinceLastCheck < this.statusCheckDebounceDelay) {
-      const delayTime = this.statusCheckDebounceDelay - timeSinceLastCheck;
-      CU12Logger.logStatus("Debouncing status check", {
-        timeSinceLastCheck,
-        debounceDelay: this.statusCheckDebounceDelay,
-        actualDelay: delayTime,
-      });
-
-      this.statusCheckTimeout = setTimeout(() => {
-        this.executeStatusCheck();
-      }, delayTime);
-      return;
-    }
-
-    // Execute immediately if enough time has passed
-    this.executeStatusCheck();
-  }
-
-  /**
-   * Execute the actual status check to both boards
-   */
-  private executeStatusCheck() {
-    this.lastStatusCheckTime = Date.now();
-
-    CU12Logger.logStatus("Sending status check to all boards");
-
-    // Check board 0x00
-    const cmd1 = CU12PacketUtils.createStatusPacket(0x00);
-    CU12Logger.logPacket("TX", cmd1, "Status check board 0x00");
-    this.serialPort.write(cmd1);
-
-    // Wait a bit then check board 0x01
-    setTimeout(() => {
-      const cmd2 = CU12PacketUtils.createStatusPacket(0x01);
-      CU12Logger.logPacket("TX", cmd2, "Status check board 0x01");
-      this.serialPort.write(cmd2);
-    }, 100);
-  }
-
+  
   /**
    * Parse status response from CU12
    */

@@ -5,7 +5,7 @@ import { logger } from "../../logger";
 export const initHandler = (cu12: CU12Controller, mainWindow: any) => {
   ipcMain.handle("init", async (event, payload) => {
     try {
-      cu12.sendCheckStateToAllBoards(); // Send status check to both CU12 boards
+      cu12.sendCheckState(); // Send status check to CU12 board 0x00
 
       await logger({
         user: "system",
