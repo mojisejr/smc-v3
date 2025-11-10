@@ -828,7 +828,7 @@ export class CU12Controller {
     );
 
     CU12Logger.logStatus("Deactivating slot", { slotId });
-    this.slotStates.set(slotId, false);
+    this.slotStates.set(slotId - 1, false);
 
     await logger({
       user: "system",
