@@ -3,7 +3,7 @@
  *
  * CU12 Protocol: [STX, ADDR, LOCKNUM, CMD, ASK, DATALEN, ETX, SUM, STATUS0, STATUS1]
  * STX: 0x02, ETX: 0x03
- * ADDR: Board address (0x00 or 0x01)
+ * ADDR: Board address (0x00 only for single board configuration)
  * LOCKNUM: Lock number 0-11
  * CMD: 0x80 (Status) or 0x81 (Unlock)
  * ASK: 0x00
@@ -17,7 +17,7 @@
 
 export interface CU12Packet {
   stx: number;        // 0x02
-  address: number;    // 0x00 or 0x01 (board address)
+  address: number;    // 0x00 only (single board configuration)
   lockNum: number;    // Lock number 0-11
   command: number;    // 0x80 (Status) or 0x81 (Unlock)
   ask: number;        // 0x00
@@ -186,23 +186,20 @@ export class CU12PacketUtils {
   }
 
   /**
-   * Convert CU12 lock states to KU16 slot states
-   * CU12 Board 0x00 → KU16 slots 1-12
-   * CU12 Board 0x01 → KU16 slots 13-15 (only first 3 locks used)
+   * Convert CU12 lock states to KU16 slot states for single board configuration
+   * CU12 Board 0x00 only → KU16 slots 1-12 (real slots) + 13-15 (mock slots)
    */
   static convertCul12StatesToKu16Slots(boardAddress: number, lockStates: boolean[]): number[] {
     const ku16Slots: number[] = [];
 
     if (boardAddress === 0x00) {
-      // Board 0x00: Locks 0-11 → KU16 slots 1-12
+      // Board 0x00 only: Locks 0-11 → KU16 slots 1-12
       for (let i = 0; i < Math.min(lockStates.length, 12); i++) {
         ku16Slots.push(i); // KU16 slot 0-11 (displayed as 1-12)
       }
-    } else if (boardAddress === 0x01) {
-      // Board 0x01: Locks 0-2 → KU16 slots 13-15
-      for (let i = 0; i < Math.min(lockStates.length, 3); i++) {
-        ku16Slots.push(i + 12); // KU16 slot 12-14 (displayed as 13-15)
-      }
+    } else {
+      // Board 0x01 doesn't exist in single board configuration
+      throw new Error(`Invalid CU12 address: ${boardAddress}. Only board 0x00 is supported in single board configuration.`);
     }
 
     return ku16Slots;
@@ -260,31 +257,39 @@ export class CU12PacketUtils {
 }
 
 /**
- * KU16 to CU12 slot mapping
- * KU16 Channel 0-11 → CU12 Address 0x00, Lock 0-11
- * KU16 Channel 12-14 → CU12 Address 0x01, Lock 0-2
+ * KU16 to CU12 slot mapping for single board configuration
+ * All KU16 Channel 0-14 → CU12 Address 0x00 (single board)
+ * Real slots 0-11 → Lock 0-11 (hardware operation)
+ * Mock slots 12-14 → Lock 0 (won't be used for hardware operations)
  */
 export function mapKu16SlotToCu12(slotId: number): { address: number; lock: number } {
   if (slotId < 0 || slotId > 14) {
     throw new Error(`Invalid KU16 slot ID: ${slotId}. Must be 0-14.`);
   }
 
+  // All slots map to single board 0x00
   if (slotId <= 11) {
+    // Real slots 1-12: Map to corresponding locks 0-11
     return { address: 0x00, lock: slotId };
   } else {
-    return { address: 0x01, lock: slotId - 12 };
+    // Mock slots 13-15: Map to lock 0 (won't be used for hardware operations)
+    return { address: 0x00, lock: 0 };
   }
 }
 
 /**
- * CU12 to KU16 slot mapping (reverse mapping)
+ * CU12 to KU16 slot mapping (reverse mapping) for single board configuration
+ * Only CU12 Address 0x00 is supported (single board)
  */
 export function mapCu12ToKu16Slot(address: number, lock: number): number {
   if (address === 0x00) {
+    // Single board 0x00: Return lock directly (0-11)
+    if (lock < 0 || lock > 11) {
+      throw new Error(`Invalid CU12 lock number: ${lock}. Must be 0-11 for board 0x00.`);
+    }
     return lock;
-  } else if (address === 0x01) {
-    return lock + 12;
   } else {
-    throw new Error(`Invalid CU12 address: ${address}. Must be 0x00 or 0x01.`);
+    // Board 0x01 doesn't exist in single board configuration
+    throw new Error(`Invalid CU12 address: ${address}. Only board 0x00 is supported in single board configuration.`);
   }
 }
