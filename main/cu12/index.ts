@@ -88,9 +88,9 @@ export class CU12Controller {
       this.handleIncomingData(data);
     });
 
-    // Initialize board status maps
+    // Initialize board status maps - single board 0x00 only
     this.boardStatus.set(0x00, false);
-    this.boardStatus.set(0x01, false);
+    this.currentBoardAddress = 0x00;
 
     // Initialize slot states (all closed initially)
     for (let i = 0; i < 15; i++) {
