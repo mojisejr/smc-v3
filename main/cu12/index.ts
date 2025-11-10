@@ -881,6 +881,11 @@ export class CU12Controller {
 
         systemLog("dispense_locked_back_received: still opening");
 
+        await logger({
+          user: "system",
+          message: `[CU12-NOT-LOCKED] dispensing slot still open - retry needed - slot #${this.openingSlot.slotId}`,
+        });
+
         // Send error event to UI (keep modal visible)
         this.win.webContents.send("dispensing", {
           ...this.openingSlot,
@@ -905,7 +910,7 @@ export class CU12Controller {
       );
       await logger({
         user: "system",
-        message: `dispense_locked_back_received: slot #${this.openingSlot.slotId} locked back`,
+        message: `[CU12-LOCK-BACK] dispensing completed - slot locked back - slot #${this.openingSlot.slotId}`,
       });
 
       // Reset all flags
