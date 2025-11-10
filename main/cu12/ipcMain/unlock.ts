@@ -41,8 +41,7 @@ export const unlockHandler = (cu12: CU12Controller) => {
         process: "unlock",
         message: "ปลดล็อคสำเร็จ",
       });
-      await cu12.sleep(1000);
-      cu12.sendCheckState(); // Send status check to current board
+      // Removed auto-wait: User will manually trigger status check via [ตกลง] button
     } catch (error) {
       cu12.win.webContents.send("unlock-error", {
         message: "ปลดล็อกไม่สำเร็จกรุณาตรวจสอบรหัสผู้ใช้งานอีกครั้ง",
